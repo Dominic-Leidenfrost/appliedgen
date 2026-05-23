@@ -1,0 +1,38 @@
+# Seed problems used across tests, demos, and the evaluation runs described
+# in PLAN.md §8. Each problem is chosen to stress a different axis:
+# mechanical / organizational / social.
+
+problems:
+  - id: mechanical_vending
+    category: mechanical
+    user_text: |
+      My vending machine sometimes accepts coins but doesn't dispense the
+      product. It happens about once a week. The display shows no error.
+    why_chosen: |
+      Concrete physical system with atomic-transaction tension. Good test
+      for whether the Definer can identify the actuator/sensor mismatch as
+      a structural tension rather than a generic "needs more debugging".
+
+  - id: organizational_overload
+    category: organizational
+    user_text: |
+      I lead a team of 4 engineers. We have 12 active projects across 3
+      stakeholder groups and 2 hard deadlines in the next month. Everyone is
+      working evenings and quality is starting to slip. I can't drop any
+      project without political fallout.
+    why_chosen: |
+      Classic resource-constrained multi-priority problem with explicit
+      tensions (speed vs. quality, throughput vs. politics). The kind of
+      problem where metaphor-based reframing should genuinely help vs. the
+      "just prioritize ruthlessly" baseline.
+
+  - id: social_book_club
+    category: social
+    user_text: |
+      Our book club has 8 members. Three of them dominate discussion, two
+      barely speak, and the rest drift in and out. We meet monthly. I want
+      everyone to feel heard without turning into a moderator dictator.
+    why_chosen: |
+      Soft, low-stakes social dynamics where the "obvious" advice is bad
+      ("just call on the quiet ones!"). Forces the system to think about
+      group equilibria, not individual fixes.
