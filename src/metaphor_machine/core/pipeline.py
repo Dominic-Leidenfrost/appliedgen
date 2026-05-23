@@ -10,7 +10,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 
 from ..agents.definer import DefinerAgent
+from ..agents.explorer import ExplorerAgent
 from ..agents.transformer import TransformerAgent
+from ..agents.translator import TranslatorAgent
 from ..prompts.domains import DomainSeed, pick_diverse
 from .schemas import MetaphorSpec, Move, ProblemSpec, Solution
 
@@ -28,17 +30,31 @@ class Session:
 
 
 class Pipeline:
-    """Orchestrator. Sprint 1: Definer. Sprint 2: Transformer (parallel)."""
+    """Orchestrator. All four agents wired up as of Sprint 3."""
 
     def __init__(self, session: Session | None = None) -> None:
         self.session = session or Session()
         self._definer: DefinerAgent | None = None
+        self._explorer: ExplorerAgent | None = None
+        self._translator: TranslatorAgent | None = None
 
     @property
     def definer(self) -> DefinerAgent:
         if self._definer is None:
             self._definer = DefinerAgent()
         return self._definer
+
+    @property
+    def explorer(self) -> ExplorerAgent:
+        if self._explorer is None:
+            self._explorer = ExplorerAgent()
+        return self._explorer
+
+    @property
+    def translator(self) -> TranslatorAgent:
+        if self._translator is None:
+            self._translator = TranslatorAgent()
+        return self._translator
 
     # --- step 1: Definer ---
     def run_definer(self, user_text: str) -> ProblemSpec:
@@ -88,12 +104,30 @@ class Pipeline:
     def run_explorer_turn(self, user_message: str) -> Move:
         if self.session.chosen_metaphor is None:
             raise RuntimeError("User must pick a metaphor first.")
-        # TODO(sprint-3): call ExplorerAgent with current moves + user_message
-        raise NotImplementedError("Explorer agent — implement in Sprint 3")
+        move = self.explorer.run(
+            metaphor=self.session.chosen_metaphor,
+            history=self.session.moves,
+            user_message=user_message,
+        )
+        self.session.moves.append(move)
+        return move
 
     # --- step 4: Translator ---
     def run_translator(self) -> list[Solution]:
         if not self.session.moves:
             raise RuntimeError("No moves to translate yet.")
-        # TODO(sprint-3): call TranslatorAgent over each interesting move
-        raise NotImplementedError("Translator agent — implement in Sprint 3")
+        if self.session.problem is None or self.session.chosen_metaphor is None:
+            raise RuntimeError("Definer and Explorer must run before Translator.")
+        solutions = self.translator.run(
+            problem=self.session.problem,
+            metaphor=self.session.chosen_metaphor,
+            moves=self.session.moves,
+        )
+        self.session.solutions = solutions
+        return solutions
+
+    def run_baseline(self) -> str:
+        """Direct LLM answer without metaphor, for comparison panel."""
+        if self.session.problem is None:
+            raise RuntimeError("Run the Definer first.")
+        return self.translator.baseline(self.session.problem)

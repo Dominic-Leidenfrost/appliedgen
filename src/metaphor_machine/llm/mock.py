@@ -102,8 +102,56 @@ def _transformer_mock(schema: type[BaseModel], messages: list[dict[str, str]]) -
     }
 
 
+def _explorer_mock(schema: type[BaseModel], messages: list[dict[str, str]]) -> dict[str, Any]:
+    """Return a canned Move — stays inside pirate metaphor, has obstacle."""
+    return {
+        "actor": "Navigator Priya",
+        "action": (
+            "[MOCK] Drops anchor at Westport for two tides, ignoring the eastern "
+            "guild island, to scrape the hull rot off the keel."
+        ),
+        "consequence": (
+            "The ship can now run at full sail. But the eastern guild sends a skiff "
+            "with a warning: the next meeting is in three days and missing it voids "
+            "the trade charter."
+        ),
+        "obstacle": (
+            "The skiff captain is the harbormaster's nephew and refuses to delay the "
+            "guild notice — the repair fund barely covers the dock fee."
+        ),
+    }
+
+
+def _translator_mock(schema: type[BaseModel], messages: list[dict[str, str]]) -> dict[str, Any]:
+    """Return a canned SolutionList wrapper."""
+    return {
+        "solutions": [
+            {
+                "metaphor_idea": (
+                    "[MOCK] Navigator Priya drops anchor at Westport for two tides, "
+                    "ignoring the eastern guild island."
+                ),
+                "original_domain_translation": (
+                    "[MOCK] Designate two full days where the team works exclusively "
+                    "on the two highest-priority projects, deferring all other "
+                    "stakeholder check-ins until Thursday."
+                ),
+                "confidence": 0.72,
+                "caveats": [
+                    "[MOCK] The 'island → project' mapping breaks down: anchoring "
+                    "blocks all others, but engineers can run low-attention background "
+                    "tasks — the metaphor may overstate the cost of partial focus.",
+                    "[MOCK] Guild meeting fidelity 0.85 but leak notes deadlines can "
+                    "be negotiated; translation assumes Thursday is fixed.",
+                ],
+            }
+        ]
+    }
+
+
 MOCK_REGISTRY: dict[str, Callable[[type[BaseModel], list[dict[str, str]]], dict[str, Any]]] = {
     "definer": _definer_mock,
     "transformer": _transformer_mock,
-    # TODO(sprint-3): add explorer + translator mocks
+    "explorer": _explorer_mock,
+    "translator": _translator_mock,
 }
