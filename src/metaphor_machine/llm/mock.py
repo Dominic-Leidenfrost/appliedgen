@@ -56,8 +56,54 @@ def _definer_mock(schema: type[BaseModel], messages: list[dict[str, str]]) -> di
     }
 
 
+def _transformer_mock(schema: type[BaseModel], messages: list[dict[str, str]]) -> dict[str, Any]:
+    """Return a canned MetaphorSpec so the UI is testable without API keys."""
+    return {
+        "domain": "pirate_adventure",
+        "domain_intro": (
+            "[MOCK] A crew of four sails between twelve contested islands, each claimed "
+            "by a different merchant guild. Two guild meetings loom this month. "
+            "The captain cannot abandon any island without political fallout. "
+            "Hull rot spreads silently below the waterline."
+        ),
+        "mappings": [
+            {
+                "original": "engineer (actor)",
+                "metaphor": "crew member",
+                "fidelity": 0.8,
+                "leak": "Crew members are fungible; engineers have non-interchangeable skills.",
+            },
+            {
+                "original": "active project (resource)",
+                "metaphor": "island under sail",
+                "fidelity": 0.75,
+                "leak": "A ship can only be in one place; engineers can context-switch (badly).",
+            },
+            {
+                "original": "stakeholder deadline (constraint)",
+                "metaphor": "guild meeting at port",
+                "fidelity": 0.85,
+                "leak": "Guild meetings are binary; deadlines can sometimes be negotiated.",
+            },
+            {
+                "original": "quality slipping (tension)",
+                "metaphor": "hull rot below the waterline",
+                "fidelity": 0.7,
+                "leak": "Hull rot is invisible until catastrophic; quality signals are often visible earlier.",
+            },
+        ],
+        "invariants_preserved": [
+            "[MOCK] resource scarcity forces prioritisation",
+            "[MOCK] missing a critical event has cascading consequences",
+        ],
+        "invariants_broken": [
+            "[MOCK] projects can run in parallel; a ship cannot",
+        ],
+    }
+
+
 MOCK_REGISTRY: dict[str, Callable[[type[BaseModel], list[dict[str, str]]], dict[str, Any]]] = {
     "definer": _definer_mock,
-    # TODO(sprint-2): add transformer mock
+    "transformer": _transformer_mock,
     # TODO(sprint-3): add explorer + translator mocks
 }
