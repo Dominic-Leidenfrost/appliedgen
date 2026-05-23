@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from ..agents.definer import DefinerAgent
 from .schemas import MetaphorSpec, Move, ProblemSpec, Solution
 
 
@@ -15,7 +16,7 @@ from .schemas import MetaphorSpec, Move, ProblemSpec, Solution
 class Session:
     """All state for one user session. Persisted via storage layer."""
 
-    raw_input: str
+    raw_input: str = ""
     problem: ProblemSpec | None = None
     metaphor_candidates: list[MetaphorSpec] = field(default_factory=list)
     chosen_metaphor: MetaphorSpec | None = None
@@ -24,21 +25,26 @@ class Session:
 
 
 class Pipeline:
-    """Skeleton orchestrator. Agent calls are stubbed for now (see TODOs).
-
-    Sprint 1: implement run_definer.
-    Sprint 2: implement run_transformer (parallel × 3).
-    Sprint 3: implement run_explorer (loop) and run_translator.
-    """
+    """Orchestrator. Sprint 1: Definer implemented. Other steps stubbed."""
 
     def __init__(self, session: Session | None = None) -> None:
-        self.session = session or Session(raw_input="")
+        self.session = session or Session()
+        # Agents are constructed lazily so importing Pipeline doesn't require
+        # any env / API keys to be set yet.
+        self._definer: DefinerAgent | None = None
+
+    @property
+    def definer(self) -> DefinerAgent:
+        if self._definer is None:
+            self._definer = DefinerAgent()
+        return self._definer
 
     # --- step 1: Definer ---
     def run_definer(self, user_text: str) -> ProblemSpec:
         self.session.raw_input = user_text
-        # TODO(sprint-1): call DefinerAgent
-        raise NotImplementedError("Definer agent — implement in Sprint 1")
+        spec = self.definer.run(user_text)
+        self.session.problem = spec
+        return spec
 
     # --- step 2: Transformer (×N parallel) ---
     def run_transformer(self, n: int = 3) -> list[MetaphorSpec]:
