@@ -53,6 +53,10 @@ class Pipeline:
             raise RuntimeError("Run the Definer first.")
 
         seeds: list[DomainSeed] = pick_diverse(n=n)
+        # If no seed domains found (e.g. wrong working dir in tests), run without hints.
+        if not seeds:
+            from ..prompts.domains import DomainSeed as _DS
+            seeds = [_DS(name=f"domain_{i}", display="", description="", vocabulary=[], archetypal_entities={}, typical_relations=[]) for i in range(n)]
         problem = self.session.problem
 
         def _run_one(seed: DomainSeed) -> MetaphorSpec:
