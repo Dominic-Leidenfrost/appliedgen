@@ -20,6 +20,7 @@ from pydantic import BaseModel, ValidationError
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from .mock import MOCK_REGISTRY, mock_enabled
+from .providers import check_key_for_model
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -69,8 +70,15 @@ class LLMClient:
         installed-but-unused without crashing imports."""
         import litellm
 
+        model = overrides.get("model", self.config.model)
+
+        # Raise early with a human-readable message if the key is missing.
+        key_error = check_key_for_model(model)
+        if key_error:
+            raise LLMError(key_error)
+
         resp = litellm.completion(
-            model=overrides.get("model", self.config.model),
+            model=model,
             messages=messages,
             temperature=overrides.get("temperature", self.config.temperature),
             max_tokens=overrides.get("max_tokens", self.config.max_tokens),
