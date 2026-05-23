@@ -1,0 +1,25 @@
+name: fluid_dynamics
+display: Fluid Dynamics
+description: |
+  Flow, pressure, turbulence — a mechanical/physical metaphor.
+  Good for: bottlenecks, propagation, equilibrium, scaling problems.
+vocabulary:
+  - flow
+  - pressure
+  - viscosity
+  - turbulence
+  - laminar
+  - bottleneck
+  - reservoir
+  - pipe
+  - eddy
+  - boundary_layer
+archetypal_entities:
+  actors: [particle, stream, current]
+  resources: [pressure_head, kinetic_energy, volume]
+  obstacles: [bottleneck, turbulence, friction, blockage]
+  environment: [pipe, reservoir, open_channel]
+typical_relations:
+  - "[flow_rate] limited_by [bottleneck]"
+  - "[pressure] propagates_through [pipe]"
+  - "[turbulence] emerges_from [high_velocity]"

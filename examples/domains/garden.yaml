@@ -1,0 +1,25 @@
+name: garden
+display: Vegetable Garden
+description: |
+  A gardener tending plants through seasons, weather, pests.
+  Good for: slow-cycle problems, patience, neglect/attention tradeoffs.
+vocabulary:
+  - seed
+  - soil
+  - sunlight
+  - weed
+  - pest
+  - compost
+  - harvest
+  - companion_planting
+  - season
+  - drought
+archetypal_entities:
+  actors: [gardener, plant, weed, pest, pollinator]
+  resources: [water, sunlight, nutrients, attention]
+  obstacles: [drought, frost, infestation, neglect]
+  environment: [bed, greenhouse, compost_pile]
+typical_relations:
+  - "[plant] competes_with [weed] for [nutrients]"
+  - "[harvest] depends_on [attention_over_time]"
+  - "[soil_health] degrades_with [overuse]"

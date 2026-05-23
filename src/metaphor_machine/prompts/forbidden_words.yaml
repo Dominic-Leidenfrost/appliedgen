@@ -1,0 +1,18 @@
+# Words the Explorer agent is not allowed to use.
+# Editing this file is a no-code way to fight generic-advice collapse.
+# See PLAN.md §4.1.
+forbidden:
+  - collaborate
+  - communicate
+  - align
+  - synergy
+  - leverage
+  - stakeholder
+  - best practice
+  - find a way
+  - work together
+  - reach out
+  - circle back
+  - touch base
+  - move the needle
+  - low-hanging fruit

@@ -1,0 +1,25 @@
+name: kitchen
+display: Professional Kitchen
+description: |
+  A line cook brigade under service pressure.
+  Good for: throughput, coordination under time pressure, quality control.
+vocabulary:
+  - head_chef
+  - line_cook
+  - mise_en_place
+  - service
+  - ticket
+  - sauce_station
+  - 86
+  - pass
+  - prep
+  - dishwasher
+archetypal_entities:
+  actors: [head_chef, line_cook, expediter, dishwasher]
+  resources: [ingredients, oven_space, pan_space, time_to_service]
+  obstacles: [rush, 86d_ingredient, equipment_failure, bad_ticket]
+  environment: [station, walk_in, pass]
+typical_relations:
+  - "[ticket] requires [stations]"
+  - "[service_speed] limited_by [bottleneck_station]"
+  - "[quality] degrades_under [rush]"
