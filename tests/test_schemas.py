@@ -40,7 +40,12 @@ def test_metaphorspec_roundtrip() -> None:
 
 
 def test_move_and_solution() -> None:
-    move = Move(actor="Captain Reyes", action="set course for nearest island", obstacle="storm")
+    move = Move(
+        actor="Captain Reyes",
+        action="set course for nearest island",
+        consequence="crew morale rises but supplies dwindle",
+        obstacle="storm",
+    )
     sol = Solution(
         metaphor_idea="anchor at one island first",
         original_domain_translation="commit to one project for 2 weeks before reassessing",
