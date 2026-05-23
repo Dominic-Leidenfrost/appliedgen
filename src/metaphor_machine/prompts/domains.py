@@ -14,7 +14,7 @@ from typing import Sequence
 
 import yaml
 
-_DOMAINS_DIR = Path(__file__).resolve().parents[5] / "examples" / "domains"
+_DOMAINS_DIR = Path(__file__).resolve().parents[3] / "examples" / "domains"
 
 
 @dataclass
