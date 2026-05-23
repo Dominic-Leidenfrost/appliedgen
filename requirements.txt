@@ -1,0 +1,9 @@
+# Pinned, installable with: pip install -r requirements.txt
+# (Kept in sync with pyproject.toml dependencies.)
+streamlit>=1.38
+litellm>=1.50
+pydantic>=2.7
+python-dotenv>=1.0
+rich>=13.7
+pyyaml>=6.0
+tenacity>=8.5

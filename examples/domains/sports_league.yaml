@@ -1,0 +1,25 @@
+name: sports_league
+display: Sports League
+description: |
+  Teams, seasons, rivalries, transfers, championships.
+  Good for: competition, ranking, multi-round strategy, team dynamics.
+vocabulary:
+  - team
+  - coach
+  - season
+  - rivalry
+  - transfer
+  - playoff
+  - draft
+  - injury
+  - roster
+  - playbook
+archetypal_entities:
+  actors: [coach, star_player, role_player, rival_team, scout]
+  resources: [salary_cap, draft_pick, training_time, fan_support]
+  obstacles: [injury, losing_streak, salary_overrun, locker_room_drama]
+  environment: [home_court, away_game, training_camp]
+typical_relations:
+  - "[team] competes_with [rival] for [championship]"
+  - "[performance] limited_by [salary_cap]"
+  - "[chemistry] degrades_with [roster_change]"

@@ -1,0 +1,25 @@
+name: pirate_adventure
+display: Pirate Adventure
+description: |
+  A small crew sailing uncharted waters, chasing rumored treasures.
+  Good for: small-team problems, exploration vs. exploitation, resource scarcity.
+vocabulary:
+  - captain
+  - crew
+  - ship
+  - storm
+  - island
+  - treasure
+  - map
+  - mutiny
+  - port
+  - cannon
+archetypal_entities:
+  actors: [captain, navigator, crew, rival_captain]
+  resources: [gold, fresh_water, gunpowder, ship_speed]
+  obstacles: [storm, kraken, naval_blockade, mutiny]
+  environment: [open_sea, hidden_cove, port_city]
+typical_relations:
+  - "[crew] depends_on [captain]"
+  - "[ship] vulnerable_to [storm]"
+  - "[treasure] guarded_by [obstacle]"

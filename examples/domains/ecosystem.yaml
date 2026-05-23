@@ -1,0 +1,25 @@
+name: ecosystem
+display: Forest Ecosystem
+description: |
+  Species, niches, predator/prey, succession.
+  Good for: equilibrium, competition, emergent dynamics, long-term change.
+vocabulary:
+  - predator
+  - prey
+  - niche
+  - keystone_species
+  - succession
+  - canopy
+  - decomposer
+  - habitat
+  - migration
+  - extinction
+archetypal_entities:
+  actors: [predator, prey, plant, decomposer, keystone_species]
+  resources: [sunlight, water, soil_nutrients, territory]
+  obstacles: [drought, fire, invasive_species, disease]
+  environment: [canopy, understory, forest_floor, stream]
+typical_relations:
+  - "[predator] regulates [prey_population]"
+  - "[plant] competes_with [plant] for [sunlight]"
+  - "[ecosystem] destabilized_by [keystone_removal]"

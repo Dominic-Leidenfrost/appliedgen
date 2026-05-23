@@ -1,0 +1,25 @@
+name: heist_movie
+display: Heist Movie
+description: |
+  A crew planning a high-stakes job with specialists.
+  Good for: planning under uncertainty, role specialization, contingencies, trust.
+vocabulary:
+  - mastermind
+  - safecracker
+  - getaway_driver
+  - inside_man
+  - mark
+  - vault
+  - alarm
+  - alibi
+  - score
+  - double_cross
+archetypal_entities:
+  actors: [mastermind, specialist, mark, security_guard, double_crosser]
+  resources: [intel, equipment, time_window, trust]
+  obstacles: [alarm, unexpected_guard, equipment_failure, betrayal]
+  environment: [vault, getaway_route, safe_house]
+typical_relations:
+  - "[plan] depends_on [intel_accuracy]"
+  - "[risk] increases_with [crew_size]"
+  - "[trust] eroded_by [unequal_shares]"

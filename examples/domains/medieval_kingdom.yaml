@@ -1,0 +1,25 @@
+name: medieval_kingdom
+display: Medieval Kingdom
+description: |
+  A monarch governing nobles, peasants, and rival kingdoms.
+  Good for: governance, hierarchy, alliance/conflict, long-horizon strategy.
+vocabulary:
+  - monarch
+  - vassal
+  - peasant
+  - knight
+  - castle
+  - tribute
+  - alliance
+  - siege
+  - heir
+  - decree
+archetypal_entities:
+  actors: [monarch, advisor, vassal, peasant, rival_king]
+  resources: [gold, grain, soldiers, loyalty]
+  obstacles: [famine, invasion, plague, succession_crisis]
+  environment: [castle, countryside, border]
+typical_relations:
+  - "[vassal] owes_tribute_to [monarch]"
+  - "[loyalty] erodes_under [famine]"
+  - "[alliance] strengthened_by [marriage]"

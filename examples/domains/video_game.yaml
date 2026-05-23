@@ -1,0 +1,25 @@
+name: video_game
+display: Open-World Video Game
+description: |
+  A player with stats, quests, gear, factions, and a leveling system.
+  Good for: skill trees, progression, multi-path solutions, optionality.
+vocabulary:
+  - player
+  - npc
+  - quest
+  - skill_tree
+  - level_up
+  - faction
+  - loot
+  - boss
+  - side_quest
+  - main_quest
+archetypal_entities:
+  actors: [player, npc_quest_giver, faction_leader, boss]
+  resources: [xp, gold, gear, skill_points]
+  obstacles: [boss_fight, locked_door, faction_hostility, time_limit]
+  environment: [hub_city, dungeon, wilderness]
+typical_relations:
+  - "[quest_unlock] requires [level]"
+  - "[faction_a_rep] reduces [faction_b_rep]"
+  - "[boss] vulnerable_to [specific_gear]"
