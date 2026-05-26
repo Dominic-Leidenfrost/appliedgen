@@ -245,6 +245,48 @@ def _fetch_openrouter_models() -> list[tuple[str, str]]:
     return out
 
 
+@st.cache_data(ttl=3600, show_spinner=False)
+def _fetch_gemini_models(api_key: str) -> list[tuple[str, str]]:
+    """Fetch the current list of Gemini models via Google's public ListModels.
+
+    Requires the user's GEMINI_API_KEY (passed in the URL — that's how
+    Google's API works). Returns [(display_name, litellm_model_id), …]
+    filtered to models that support generateContent (i.e. chat / text gen,
+    not embedding-only). Returns [] on any failure → caller falls back to
+    the curated list in providers.py.
+    """
+    import json as _json
+    from urllib.error import URLError
+    from urllib.parse import quote
+    from urllib.request import Request, urlopen
+
+    if not api_key:
+        return []
+
+    try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models?key={quote(api_key)}"
+        req = Request(url, headers={"User-Agent": "metaphor-machine/0.1"})
+        with urlopen(req, timeout=10) as resp:
+            data = _json.loads(resp.read())
+    except (URLError, TimeoutError, _json.JSONDecodeError, OSError):
+        return []
+
+    out: list[tuple[str, str]] = []
+    for m in data.get("models", []):
+        full_name = m.get("name", "")  # e.g. "models/gemini-2.5-pro"
+        if not full_name.startswith("models/"):
+            continue
+        model_id = full_name[len("models/") :]
+        methods = m.get("supportedGenerationMethods", [])
+        # Skip embedding-only and other non-chat models
+        if "generateContent" not in methods:
+            continue
+        display = m.get("displayName") or model_id
+        out.append((f"{display}  ·  {model_id}", f"gemini/{model_id}"))
+    out.sort(key=lambda x: x[0].lower())
+    return out
+
+
 # ---------------------------------------------------------------------------
 # Session state
 # ---------------------------------------------------------------------------
@@ -364,23 +406,49 @@ with st.sidebar:
         # --- Step 2: Model (different UX for OpenRouter vs others) -------
         chosen_id: str | None = None
 
-        if provider.key == "openrouter":
-            # Live catalog: fetch once per hour, cached across reruns.
-            with st.spinner(t("Fetching OpenRouter catalog…", LANG)):
-                catalog = _fetch_openrouter_models()
+        # Providers that support live model-list fetching. Falls back to
+        # the curated registry list if the fetch fails (offline, bad key,
+        # rate limited, etc.).
+        live_providers = {"openrouter", "gemini"}
+        if provider.key in live_providers:
+            spinner_msg = (
+                t("Fetching OpenRouter catalog…", LANG)
+                if provider.key == "openrouter"
+                else (
+                    "Lade Gemini-Modelle…" if LANG == "de" else "Fetching Gemini models…"
+                )
+            )
+            with st.spinner(spinner_msg):
+                if provider.key == "openrouter":
+                    catalog = _fetch_openrouter_models()
+                else:  # gemini
+                    catalog = _fetch_gemini_models(os.getenv("GEMINI_API_KEY", ""))
+
             if not catalog:
-                st.warning(
+                fallback_msg = (
                     t(
                         "Could not fetch OpenRouter catalog (offline?). Falling back to curated list.",
                         LANG,
                     )
+                    if provider.key == "openrouter"
+                    else (
+                        "Gemini-Modellliste nicht abrufbar (Key falsch oder offline?). "
+                        "Fallback auf kuratierte Liste."
+                        if LANG == "de"
+                        else "Could not fetch Gemini model list (bad key or offline?). "
+                        "Falling back to curated list."
+                    )
                 )
+                st.warning(fallback_msg)
                 catalog = [(m.display, m.model_id) for m in provider.models]
 
+            # Filter input only makes sense when the catalog is big.
+            # OpenRouter ~300 models: filter is essential. Gemini ~10-30:
+            # filter is optional but doesn't hurt.
             search = st.text_input(
                 t("🔍 Filter", LANG),
                 value="",
-                key="or_filter",
+                key=f"{provider.key}_filter",
                 placeholder=t("e.g. 'claude', 'gemini', 'mistral', 'free'…", LANG),
             )
             filtered = (
@@ -401,7 +469,7 @@ with st.sidebar:
                     f"{t('Model', LANG)} ({len(filtered)} / {len(catalog)})",
                     options=[n for n, _ in filtered],
                     index=default_model_idx,
-                    key="or_model_choice",
+                    key=f"{provider.key}_live_model_choice",
                 )
                 chosen_id = next(mid for n, mid in filtered if n == model_label)
         else:
