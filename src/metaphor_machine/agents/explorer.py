@@ -1,13 +1,19 @@
-"""Explorer agent — plays out the metaphor world with the user.
+"""Explorer agent — autonomously plays out the metaphor world.
 
-Sprint 3 implementation. Takes MetaphorSpec + move history + user message,
-produces the next Move. Heavily guarded against generic-advice collapse.
-See PLAN.md §4.1 for the full list of anti-collapse mitigations.
+The Explorer is the *generator*, not a reactor. It produces the next move on
+its own initiative each turn, building on history. The user is a curator who
+can:
+  - accept the move (just keep going)
+  - steer the next move with an optional directive ("focus on the quiet ones")
+  - demand a structurally different strategy (force_different=True)
+  - undo the last move (handled in the Pipeline / UI, not here)
+
+See the assignment text and PLAN.md §2 — the system explores, the user makes
+choices. Earlier implementation had this inverted, which exhausted users and
+defeated the purpose.
 """
 
 from __future__ import annotations
-
-import json
 
 from ..core.schemas import MetaphorSpec, Move
 from ..llm import LLMConfig
@@ -15,9 +21,10 @@ from ..prompts.check import find_forbidden
 from .base import Agent
 
 SYSTEM_PROMPT = """\
-You are the EXPLORER inside a metaphor world. You move the story forward one
-concrete step at a time. Think of yourself as a game master narrating the
-next scene.
+You are the EXPLORER inside a metaphor world. You are an autonomous narrator
+— a game master who proposes the next scene yourself, not one who waits for
+the player to dictate moves. Every turn you produce ONE concrete Move that
+advances the exploration.
 
 HARD RULES — violation causes your output to be rejected and regenerated:
 1. ENTITY NAMES: reference at least one entity by its SPECIFIC name from the
@@ -33,6 +40,10 @@ HARD RULES — violation causes your output to be rejected and regenerated:
    Translator handles that. You speak in the metaphor's language only.
 5. CONCRETE ACTIONS: the `action` must describe something a specific actor
    physically or tactically does, not a vague intention.
+6. STRATEGIC DIVERSITY: when prior moves exist, the new move must try a
+   structurally different strategy — not a variation of a prior move. If
+   prior moves added rules, try a role-redistribution next; if they removed
+   actors, try changing the environment instead.
 
 The `consequence` should include both an immediate outcome AND a new tension
 it creates — moving forward always opens something new.
@@ -68,9 +79,23 @@ class ExplorerAgent(Agent):
         self,
         metaphor: MetaphorSpec,
         history: list[Move],
-        user_message: str,
+        directive: str | None = None,
+        force_different: bool = False,
     ) -> Move:
-        messages = self._build_messages(metaphor, history, user_message)
+        """Generate the next Move autonomously.
+
+        Args:
+            metaphor: the chosen MetaphorSpec.
+            history: list of Moves already produced (the model sees them and
+                must avoid repeating strategies).
+            directive: optional user steering — e.g. "focus on the quiet
+                druid" or "the previous consequence was unrealistic, try
+                again". None means full autonomy.
+            force_different: if True, an extra instruction tells the model
+                to deliberately pick a strategy structurally unlike all
+                prior moves. Used by the UI's "Try different angle" button.
+        """
+        messages = self._build_messages(metaphor, history, directive, force_different)
 
         move: Move | None = None
         last_complaints: list[str] = []
@@ -109,7 +134,8 @@ class ExplorerAgent(Agent):
     def _build_messages(
         metaphor: MetaphorSpec,
         history: list[Move],
-        user_message: str,
+        directive: str | None,
+        force_different: bool,
     ) -> list[dict[str, str]]:
         mapping_table = "\n".join(
             f"  {m.original} → {m.metaphor} (fidelity {m.fidelity:.2f})"
@@ -130,18 +156,43 @@ class ExplorerAgent(Agent):
                     f"  Consequence: {m.consequence}\n"
                     f"  Obstacle: {m.obstacle or '(none recorded)'}"
                 )
-            history_text = "\n\n### Move history\n" + "\n\n".join(lines)
+            history_text = "\n\n### Move history (you generated these)\n" + "\n\n".join(lines)
+
+        # Build the instruction block
+        if not history:
+            task = (
+                "Generate the FIRST move. Pick an actor and a tactically "
+                "interesting opening action — something that probes the "
+                "world's tensions rather than the most obvious thing to do."
+            )
+        elif force_different:
+            task = (
+                "Generate the NEXT move with a structurally DIFFERENT strategy "
+                "from anything above. If prior moves changed rules, try changing "
+                "roles. If prior moves changed roles, try changing the environment. "
+                "If prior moves added structure, try removing structure. The "
+                "diversity is the point — repeating strategies wastes the user's time."
+            )
+        else:
+            task = (
+                "Generate the NEXT move. React to the obstacle from the most "
+                "recent move (work around it, or accept it as a new constraint), "
+                "OR open a new front by trying a different angle. Do NOT repeat "
+                "a strategy already tried."
+            )
+
+        if directive and directive.strip():
+            task += (
+                f"\n\nUser steering for this move: {directive.strip()}\n"
+                "Honour the user's steering as much as the hard rules allow."
+            )
 
         return [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "system", "content": FORMAT_EXAMPLE},
             {
                 "role": "user",
-                "content": (
-                    f"{world_context}{history_text}\n\n"
-                    f"### User's next instruction\n{user_message}\n\n"
-                    "Generate the next Move JSON."
-                ),
+                "content": f"{world_context}{history_text}\n\n### Your task\n{task}\n\nReturn a Move JSON.",
             },
         ]
 
