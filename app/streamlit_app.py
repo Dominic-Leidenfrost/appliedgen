@@ -80,11 +80,40 @@ with st.sidebar:
     else:
         st.success(f"Connected: {', '.join(connected)}")
 
+    # Show the ACTIVE model — i.e. what the next LLM call will actually use.
+    # This is the env value, since agent configs are constructed from env at
+    # first use. The text input below is a configured default placeholder; it
+    # does not currently override running agents — that requires a session
+    # reset to take effect (see Reset button below).
+    active_model = os.getenv("METAPHOR_DEFAULT_MODEL", "anthropic/claude-sonnet-4-6")
+    provider_prefix = active_model.split("/")[0].capitalize()
+    if mock_enabled():
+        st.info("**Active model:** _mock fixtures_ (no LLM calls)")
+    else:
+        # Highlight whether the active model matches an available key
+        active_provider_env = {
+            "anthropic": "ANTHROPIC_API_KEY",
+            "openai": "OPENAI_API_KEY",
+            "gemini": "GEMINI_API_KEY",
+            "openrouter": "OPENROUTER_API_KEY",
+        }.get(active_model.split("/")[0], "")
+        key_ok = active_provider_env and os.getenv(active_provider_env)
+        icon = "🟢" if key_ok else "🔴"
+        st.markdown(
+            f"**{icon} Active model:** `{active_model}`  \n"
+            f"_Provider: {provider_prefix}_"
+            + ("" if key_ok else f"  \n⚠️ No key for this model — set `{active_provider_env}` or change `METAPHOR_DEFAULT_MODEL` in `.env`.")
+        )
+
     st.text_input(
-        "Model",
-        value=os.getenv("METAPHOR_DEFAULT_MODEL", "anthropic/claude-sonnet-4-6"),
+        "Model (edit + Reset session to apply)",
+        value=active_model,
         key="model",
-        help="Any LiteLLM model string.",
+        help=(
+            "Any LiteLLM model string. NOTE: changes here only take effect "
+            "after clicking 'Reset session' below — the running agents cache "
+            "their model config at first use."
+        ),
     )
 
     with st.expander("Per-agent temperatures"):
