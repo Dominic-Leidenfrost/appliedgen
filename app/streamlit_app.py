@@ -373,7 +373,8 @@ def render_metaphor_card(m: MetaphorSpec, idx: int, chosen: bool) -> None:
                 _push_msg(
                     "assistant",
                     f"Metaphor **{m.domain.replace('_', ' ').title()}** selected. "
-                    "Describe a move to make inside this world to begin exploring.",
+                    "Click **🎲 Generate first move** below — the Explorer will "
+                    "propose moves and you curate (steer, redo, or accept).",
                 )
                 st.rerun()
         st.caption(m.domain_intro)
@@ -486,38 +487,106 @@ with chat_col:
                 pipeline.session.chosen_metaphor = None
                 st.rerun()
 
-    # --- Phase: Explorer ---
+    # --- Phase: Explorer (autonomous generation, user curates) ---
     elif phase == "explorer":
         chosen = pipeline.session.chosen_metaphor
+        n_moves = len(pipeline.session.moves)
         if chosen:
             domain_name = chosen.domain.replace("_", " ").title()
-            st.caption(f"Exploring: **{domain_name}** — stay inside the metaphor.")
+            st.caption(
+                f"Exploring **{domain_name}** — the Explorer proposes moves, "
+                f"you curate. Move count: **{n_moves}**."
+            )
 
-        explorer_input = st.chat_input("Describe the next move in the metaphor world…")
-        if explorer_input:
-            _push_msg("user", explorer_input)
-            with st.chat_message("user"):
-                st.markdown(explorer_input)
-            with st.chat_message("assistant"):
-                try:
-                    with st.spinner("Explorer narrating next move…"):
-                        move = pipeline.run_explorer_turn(explorer_input)
-                    move_msg = (
-                        f"**{move.actor}** — {move.action}\n\n"
-                        f"**→** {move.consequence}\n\n"
-                        f"🚧 _{move.obstacle}_"
+        # --- Control row: Generate / Try different / Undo --------------
+        col_gen, col_diff, col_undo = st.columns([3, 3, 2])
+
+        def _run_explorer(directive: str | None, force_different: bool) -> None:
+            try:
+                spinner_text = (
+                    "Explorer trying a fundamentally different strategy…"
+                    if force_different
+                    else "Explorer proposing next move…"
+                )
+                with st.spinner(spinner_text):
+                    move = pipeline.run_explorer_turn(
+                        directive=directive,
+                        force_different=force_different,
                     )
-                    st.markdown(move_msg)
-                    _push_msg("assistant", move_msg)
+                move_msg = (
+                    f"**Move {len(pipeline.session.moves)} — {move.actor}**\n\n"
+                    f"_{move.action}_\n\n"
+                    f"**→** {move.consequence}\n\n"
+                    f"🚧 _{move.obstacle}_"
+                )
+                _push_msg("assistant", move_msg)
+                st.session_state.steering_input = ""  # clear steering after use
+                st.rerun()
+            except Exception as e:
+                err = f"⚠️ Explorer failed: `{_format_error(e)}`"
+                st.error(err)
+                _push_msg("assistant", err)
+
+        # Read steering text once so all three buttons can pass it in
+        steering = st.session_state.get("steering_input", "")
+
+        with col_gen:
+            btn_label = "🎲 Generate first move" if n_moves == 0 else "🎲 Continue exploring"
+            if st.button(btn_label, type="primary", use_container_width=True):
+                _run_explorer(directive=steering or None, force_different=False)
+
+        with col_diff:
+            disabled = n_moves == 0
+            if st.button(
+                "🔄 Try different angle",
+                use_container_width=True,
+                disabled=disabled,
+                help="Force the next move to use a strategy structurally unlike all prior moves.",
+            ):
+                _run_explorer(directive=steering or None, force_different=True)
+
+        with col_undo:
+            disabled = n_moves == 0
+            if st.button(
+                "↩️ Undo last",
+                use_container_width=True,
+                disabled=disabled,
+                help="Remove the most recent move (e.g. if it broke the metaphor or felt off).",
+            ):
+                popped = pipeline.undo_last_move()
+                if popped:
+                    _push_msg(
+                        "assistant",
+                        f"_(Undid Move {n_moves}: {popped.actor} — {popped.action[:60]}…)_",
+                    )
                     st.rerun()
-                except Exception as e:
-                    err = f"⚠️ Explorer failed: `{_format_error(e)}`"
-                    st.error(err)
-                    _push_msg("assistant", err)
+
+        # --- Optional steering text ------------------------------------
+        st.text_area(
+            "Optional steering for the next move",
+            value=steering,
+            key="steering_input",
+            height=68,
+            placeholder=(
+                "Leave empty for full autonomy. Or steer: 'focus on the quieter "
+                "members', 'try a structural rule change', 'the last consequence "
+                "wasn't realistic, redo it'…"
+            ),
+        )
+
+        # --- Hint when there's enough material to translate -----------
+        if n_moves >= 5:
+            st.info(
+                f"You have **{n_moves} moves** — usually plenty for the Translator. "
+                "Consider proceeding to solutions."
+            )
 
         if pipeline.session.moves:
             if st.button(
-                "🔁 Translate moves to solutions →", type="primary", use_container_width=True
+                "🔁 Translate moves to solutions →",
+                type="secondary" if n_moves < 3 else "primary",
+                use_container_width=True,
+                help="End the exploration phase. Each move becomes one candidate solution.",
             ):
                 st.session_state.phase = "translator"
                 st.rerun()

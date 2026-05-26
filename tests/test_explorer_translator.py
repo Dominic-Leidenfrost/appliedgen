@@ -73,19 +73,19 @@ def one_move() -> Move:
 
 def test_explorer_smoke(pirate_metaphor):
     agent = ExplorerAgent()
-    move = agent.run(metaphor=pirate_metaphor, history=[], user_message="Repair the hull.")
+    move = agent.run(metaphor=pirate_metaphor, history=[], directive="Repair the hull.")
     assert isinstance(move, Move)
 
 
 def test_explorer_returns_move_with_obstacle(pirate_metaphor):
     agent = ExplorerAgent()
-    move = agent.run(metaphor=pirate_metaphor, history=[], user_message="Do something.")
+    move = agent.run(metaphor=pirate_metaphor, history=[], directive="Do something.")
     assert move.obstacle is not None and len(move.obstacle) > 0
 
 
 def test_explorer_move_schema_valid(pirate_metaphor):
     agent = ExplorerAgent()
-    move = agent.run(metaphor=pirate_metaphor, history=[], user_message="Advance the plot.")
+    move = agent.run(metaphor=pirate_metaphor, history=[], directive="Advance the plot.")
     raw = move.model_dump()
     Move.model_validate(raw)
 
@@ -95,7 +95,7 @@ def test_explorer_with_history(pirate_metaphor, one_move):
     move = agent.run(
         metaphor=pirate_metaphor,
         history=[one_move],
-        user_message="What happens next?",
+        directive="What happens next?",
     )
     assert isinstance(move, Move)
 

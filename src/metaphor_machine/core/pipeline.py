@@ -191,17 +191,37 @@ class Pipeline:
         self.session.metaphor_candidates = diverse
         return diverse
 
-    # --- step 3: Explorer (interactive loop) ---
-    def run_explorer_turn(self, user_message: str) -> Move:
+    # --- step 3: Explorer (autonomous, with optional steering) ---
+    def run_explorer_turn(
+        self,
+        directive: str | None = None,
+        force_different: bool = False,
+    ) -> Move:
+        """Generate the next Move autonomously.
+
+        Args:
+            directive: optional user steering text. If None/empty, the
+                Explorer picks the next move with full autonomy.
+            force_different: ask for a strategy structurally unlike prior
+                moves. Wired to the UI's 'Try different angle' button.
+        """
         if self.session.chosen_metaphor is None:
             raise RuntimeError("User must pick a metaphor first.")
         move = self.explorer.run(
             metaphor=self.session.chosen_metaphor,
             history=self.session.moves,
-            user_message=user_message,
+            directive=directive,
+            force_different=force_different,
         )
         self.session.moves.append(move)
         return move
+
+    def undo_last_move(self) -> Move | None:
+        """Pop the most recent Move from the session. Returns the popped Move
+        (so the UI can confirm) or None if there was nothing to undo."""
+        if self.session.moves:
+            return self.session.moves.pop()
+        return None
 
     # --- step 4: Translator ---
     def run_translator(self) -> list[Solution]:
