@@ -58,15 +58,27 @@ if "saved_path" not in st.session_state:
 with st.sidebar:
     st.title("🎭 Metaphor Machine")
 
-    has_anthropic = bool(os.getenv("ANTHROPIC_API_KEY"))
-    has_openai = bool(os.getenv("OPENAI_API_KEY"))
+    # Detect every provider supported in .env.example. Order matters only for
+    # the success message - any one of these is enough to run the pipeline.
+    provider_keys = {
+        "Anthropic": "ANTHROPIC_API_KEY",
+        "OpenAI": "OPENAI_API_KEY",
+        "Gemini": "GEMINI_API_KEY",
+        "OpenRouter": "OPENROUTER_API_KEY",
+    }
+    connected = [name for name, env in provider_keys.items() if os.getenv(env)]
+
     if mock_enabled():
         st.warning("**Mock mode** — no LLM calls.")
-    elif not (has_anthropic or has_openai):
-        st.error("No API key. Set `ANTHROPIC_API_KEY` or run with `METAPHOR_MOCK=1`.")
+    elif not connected:
+        st.error(
+            "No API key found. Set one of `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, "
+            "`GEMINI_API_KEY` or `OPENROUTER_API_KEY` in `.env`, then restart "
+            "`streamlit run` (the .env is only read at startup). "
+            "Or run with `METAPHOR_MOCK=1`."
+        )
     else:
-        providers = (["Anthropic"] if has_anthropic else []) + (["OpenAI"] if has_openai else [])
-        st.success(f"Connected: {', '.join(providers)}")
+        st.success(f"Connected: {', '.join(connected)}")
 
     st.text_input(
         "Model",
