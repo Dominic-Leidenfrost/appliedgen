@@ -27,6 +27,7 @@ import streamlit as st  # noqa: E402
 from metaphor_machine.core.pipeline import Pipeline  # noqa: E402
 from metaphor_machine.core.schemas import MetaphorSpec, Move, ProblemSpec, Solution  # noqa: E402
 from metaphor_machine.llm.mock import mock_enabled  # noqa: E402
+from metaphor_machine.llm.providers import PROVIDERS  # noqa: E402
 from metaphor_machine.storage.markdown_store import MarkdownStore  # noqa: E402
 
 load_dotenv()
@@ -80,41 +81,71 @@ with st.sidebar:
     else:
         st.success(f"Connected: {', '.join(connected)}")
 
-    # Show the ACTIVE model — i.e. what the next LLM call will actually use.
-    # This is the env value, since agent configs are constructed from env at
-    # first use. The text input below is a configured default placeholder; it
-    # does not currently override running agents — that requires a session
-    # reset to take effect (see Reset button below).
-    active_model = os.getenv("METAPHOR_DEFAULT_MODEL", "anthropic/claude-sonnet-4-6")
-    provider_prefix = active_model.split("/")[0].capitalize()
+    # ---- Model picker: dropdown of all models from providers WITH keys ----
+    # Each option = (label_shown_in_dropdown, litellm_model_id, provider_key).
+    # Plus a "Custom..." entry so users can type any LiteLLM string.
+    CUSTOM = "__custom__"
+    available_options: list[tuple[str, str]] = []
+    for p in PROVIDERS:
+        if not p.is_available():
+            continue
+        for m in p.models:
+            available_options.append((f"{p.display} · {m.display}", m.model_id))
+    available_options.append(("✏️ Custom LiteLLM model string…", CUSTOM))
+
+    # Pick a default: current pipeline model if it's in the list, else first
+    # available option, else custom.
+    current_model = st.session_state.pipeline.model
+    default_idx = next(
+        (i for i, (_, mid) in enumerate(available_options) if mid == current_model),
+        0 if available_options else len(available_options) - 1,
+    )
+
     if mock_enabled():
         st.info("**Active model:** _mock fixtures_ (no LLM calls)")
+    elif not available_options or available_options == [("✏️ Custom LiteLLM model string…", CUSTOM)]:
+        st.warning(
+            "No provider has a key set, so the dropdown is empty. "
+            "Add a key to `.env` and restart, or pick mock mode."
+        )
     else:
-        # Highlight whether the active model matches an available key
-        active_provider_env = {
+        choice_label = st.selectbox(
+            "Model",
+            options=[lbl for lbl, _ in available_options],
+            index=default_idx,
+            help="Only models whose provider has an API key are listed.",
+        )
+        chosen_id = next(mid for lbl, mid in available_options if lbl == choice_label)
+
+        # If user picked Custom, show a text input for an arbitrary model string.
+        if chosen_id == CUSTOM:
+            chosen_id = st.text_input(
+                "Custom LiteLLM model string",
+                value=current_model,
+                key="custom_model",
+                help="e.g. 'gemini/gemini-2.5-flash', 'openrouter/x-ai/grok-2'",
+            )
+
+        # Apply the choice — set_model() is a no-op if unchanged, and drops
+        # cached agents (preserving session state) if it changes.
+        if chosen_id and chosen_id != st.session_state.pipeline.model:
+            st.session_state.pipeline.set_model(chosen_id)
+            st.toast(f"Switched to {chosen_id}", icon="🔄")
+
+        # Show resolved provider + key health for whatever is now selected.
+        active = st.session_state.pipeline.model
+        provider_prefix = active.split("/")[0].lower()
+        provider_env = {
             "anthropic": "ANTHROPIC_API_KEY",
             "openai": "OPENAI_API_KEY",
             "gemini": "GEMINI_API_KEY",
             "openrouter": "OPENROUTER_API_KEY",
-        }.get(active_model.split("/")[0], "")
-        key_ok = active_provider_env and os.getenv(active_provider_env)
-        icon = "🟢" if key_ok else "🔴"
-        st.markdown(
-            f"**{icon} Active model:** `{active_model}`  \n"
-            f"_Provider: {provider_prefix}_"
-            + ("" if key_ok else f"  \n⚠️ No key for this model — set `{active_provider_env}` or change `METAPHOR_DEFAULT_MODEL` in `.env`.")
+        }.get(provider_prefix, "")
+        key_ok = provider_env and os.getenv(provider_env)
+        st.caption(
+            f"{'🟢' if key_ok else '🔴'} Active: `{active}`"
+            + ("" if key_ok else f" — no key for `{provider_env or 'this provider'}`")
         )
-
-    st.text_input(
-        "Model (edit + Reset session to apply)",
-        value=active_model,
-        key="model",
-        help=(
-            "Any LiteLLM model string. NOTE: changes here only take effect "
-            "after clicking 'Reset session' below — the running agents cache "
-            "their model config at first use."
-        ),
-    )
 
     with st.expander("Per-agent temperatures"):
         st.slider("Definer", 0.0, 1.5, 0.2, 0.1, key="temp_definer")

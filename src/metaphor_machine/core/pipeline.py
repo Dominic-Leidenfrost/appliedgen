@@ -6,6 +6,7 @@ state and decides what runs when. See PLAN.md §2 for the architecture diagram.
 
 from __future__ import annotations
 
+import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 
@@ -13,8 +14,18 @@ from ..agents.definer import DefinerAgent
 from ..agents.explorer import ExplorerAgent
 from ..agents.transformer import TransformerAgent
 from ..agents.translator import TranslatorAgent
+from ..llm import LLMConfig
 from ..prompts.domains import DomainSeed, pick_diverse
 from .schemas import MetaphorSpec, Move, ProblemSpec, Solution
+
+
+# Per-agent default temperatures (PLAN.md §2 table).
+_AGENT_TEMP = {
+    "definer": 0.2,
+    "transformer": 0.9,
+    "explorer": 0.7,
+    "translator": 0.3,
+}
 
 
 @dataclass
@@ -30,30 +41,61 @@ class Session:
 
 
 class Pipeline:
-    """Orchestrator. All four agents wired up as of Sprint 3."""
+    """Orchestrator. All four agents wired up as of Sprint 3.
 
-    def __init__(self, session: Session | None = None) -> None:
+    The `model` attribute is the LiteLLM model string used for every agent
+    call. It can be changed at runtime with `set_model()` — already-constructed
+    agents are dropped so the next access rebuilds them with the new model.
+    Session state (problem, metaphors, moves, solutions) is preserved.
+    """
+
+    def __init__(
+        self,
+        session: Session | None = None,
+        model: str | None = None,
+    ) -> None:
         self.session = session or Session()
+        # Precedence: explicit arg > env > hard-coded fallback.
+        self.model = model or os.getenv(
+            "METAPHOR_DEFAULT_MODEL", "anthropic/claude-sonnet-4-6"
+        )
         self._definer: DefinerAgent | None = None
         self._explorer: ExplorerAgent | None = None
         self._translator: TranslatorAgent | None = None
 
+    def set_model(self, model: str) -> None:
+        """Switch the model used for future agent calls.
+
+        Drops cached agent instances so the next call rebuilds them with the
+        new model. Does NOT touch session state — problem, metaphors, moves
+        and solutions already collected are preserved.
+        """
+        if model == self.model:
+            return
+        self.model = model
+        self._definer = None
+        self._explorer = None
+        self._translator = None
+
+    def _config_for(self, agent_name: str) -> LLMConfig:
+        return LLMConfig(model=self.model, temperature=_AGENT_TEMP[agent_name])
+
     @property
     def definer(self) -> DefinerAgent:
         if self._definer is None:
-            self._definer = DefinerAgent()
+            self._definer = DefinerAgent(config=self._config_for("definer"))
         return self._definer
 
     @property
     def explorer(self) -> ExplorerAgent:
         if self._explorer is None:
-            self._explorer = ExplorerAgent()
+            self._explorer = ExplorerAgent(config=self._config_for("explorer"))
         return self._explorer
 
     @property
     def translator(self) -> TranslatorAgent:
         if self._translator is None:
-            self._translator = TranslatorAgent()
+            self._translator = TranslatorAgent(config=self._config_for("translator"))
         return self._translator
 
     # --- step 1: Definer ---
@@ -75,8 +117,10 @@ class Pipeline:
             seeds = [_DS(name=f"domain_{i}", display="", description="", vocabulary=[], archetypal_entities={}, typical_relations=[]) for i in range(n)]
         problem = self.session.problem
 
+        transformer_config = self._config_for("transformer")
+
         def _run_one(seed: DomainSeed) -> MetaphorSpec:
-            agent = TransformerAgent(style_hint=seed)
+            agent = TransformerAgent(style_hint=seed, config=transformer_config)
             return agent.run(problem)
 
         results: list[MetaphorSpec] = []
