@@ -20,10 +20,70 @@ from ..core.pipeline import Session
 from ..core.schemas import MetaphorSpec, Move, ProblemSpec, Solution
 
 
+def load_session_from_json(payload: dict | str | bytes) -> Session:
+    """Reconstruct a Session from the JSON blob written by MarkdownStore.save.
+
+    Accepts either:
+      - a dict (already parsed)
+      - a str / bytes containing JSON
+
+    Returns a fully-populated Session — Pydantic validation will raise if
+    the shape is wrong (e.g. user uploaded an unrelated file).
+    """
+    if isinstance(payload, (str, bytes)):
+        payload = json.loads(payload)
+    if not isinstance(payload, dict):
+        raise ValueError(
+            f"Expected JSON object, got {type(payload).__name__}. "
+            "This doesn't look like a saved Metaphor Machine session."
+        )
+
+    session = Session(raw_input=payload.get("raw_input", ""))
+    if payload.get("problem"):
+        session.problem = ProblemSpec.model_validate(payload["problem"])
+    if payload.get("metaphor_candidates"):
+        session.metaphor_candidates = [
+            MetaphorSpec.model_validate(m) for m in payload["metaphor_candidates"]
+        ]
+    if payload.get("chosen_metaphor"):
+        session.chosen_metaphor = MetaphorSpec.model_validate(payload["chosen_metaphor"])
+    if payload.get("moves"):
+        session.moves = [Move.model_validate(m) for m in payload["moves"]]
+    if payload.get("solutions"):
+        session.solutions = [Solution.model_validate(s) for s in payload["solutions"]]
+    return session
+
+
 class MarkdownStore:
     def __init__(self, base_dir: str | os.PathLike[str] | None = None) -> None:
         self.base = Path(base_dir or os.getenv("METAPHOR_DATA_DIR", "./data/runs"))
         self.base.mkdir(parents=True, exist_ok=True)
+
+    def list_sessions(self) -> list[Path]:
+        """Return saved session folders (newest first) under base_dir.
+
+        A 'session folder' is any direct subdirectory of base_dir that
+        contains a session.json file. Folders without session.json are
+        skipped (could be incomplete or unrelated).
+        """
+        if not self.base.exists():
+            return []
+        folders = [
+            f for f in self.base.iterdir()
+            if f.is_dir() and (f / "session.json").exists()
+        ]
+        # Newest first (filenames are timestamped, lexicographic sort works)
+        return sorted(folders, reverse=True)
+
+    def load(self, folder: str | os.PathLike[str]) -> Session:
+        """Load a session from a folder that was previously save()'d."""
+        path = Path(folder)
+        session_file = path / "session.json"
+        if not session_file.exists():
+            raise FileNotFoundError(
+                f"No session.json found in {path}. Not a valid saved session."
+            )
+        return load_session_from_json(session_file.read_text())
 
     def save(self, session: Session, slug: str = "session") -> Path:
         ts = datetime.now().strftime("%Y%m%d-%H%M%S")

@@ -29,7 +29,10 @@ from metaphor_machine.core.schemas import MetaphorSpec, Move, ProblemSpec, Solut
 from metaphor_machine.llm.mock import mock_enabled  # noqa: E402
 from metaphor_machine.llm.providers import PROVIDERS  # noqa: E402
 from metaphor_machine.prompts.language import resolve_language  # noqa: E402
-from metaphor_machine.storage.markdown_store import MarkdownStore  # noqa: E402
+from metaphor_machine.storage.markdown_store import (  # noqa: E402
+    MarkdownStore,
+    load_session_from_json,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -572,6 +575,91 @@ with st.sidebar:
         st.session_state.baseline_text = None
         st.session_state.saved_path = None
         st.rerun()
+
+    # --- Import a saved session -----------------------------------------
+    def _phase_for(s: Session) -> str:
+        """Decide which phase to land in based on what's already filled in."""
+        if s.solutions:
+            return "translator"
+        if s.moves:
+            return "explorer"
+        if s.metaphor_candidates:
+            return "transformer"  # show metaphors so user can pick (or already chose)
+        return "definer"
+
+    def _apply_loaded_session(session: Session, source_label: str) -> None:
+        """Replace the running Pipeline with one that wraps the loaded session."""
+        new_pl = Pipeline(session=session)
+        st.session_state.pipeline = new_pl
+        st.session_state.messages = []
+        st.session_state.phase = _phase_for(session)
+        st.session_state.baseline_text = None
+        st.session_state.saved_path = None
+        _msg = (
+            f"Sitzung geladen ({source_label})."
+            if LANG == "de"
+            else f"Loaded session ({source_label})."
+        )
+        st.toast(_msg, icon="📂")
+
+    with st.expander(
+        "📂 " + ("Sitzung importieren" if LANG == "de" else "Import session")
+    ):
+        store_for_list = MarkdownStore(ROOT / "data" / "runs")
+        saved_folders = store_for_list.list_sessions()
+        if saved_folders:
+            options = ["—"] + [f.name for f in saved_folders]
+            choice = st.selectbox(
+                "Gespeicherte Sitzungen" if LANG == "de" else "Saved sessions",
+                options=options,
+                index=0,
+                key="import_pick",
+                help=(
+                    "Wähle eine vorher gespeicherte Sitzung aus data/runs/."
+                    if LANG == "de"
+                    else "Pick a previously saved session from data/runs/."
+                ),
+            )
+            if choice != "—" and st.button(
+                "📥 " + ("Laden" if LANG == "de" else "Load"),
+                use_container_width=True,
+                key="btn_load_local",
+            ):
+                folder = next(f for f in saved_folders if f.name == choice)
+                try:
+                    loaded = store_for_list.load(folder)
+                    _apply_loaded_session(loaded, choice)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"⚠️ {type(e).__name__}: {e}")
+        else:
+            st.caption(
+                "Noch keine gespeicherten Sitzungen in data/runs/."
+                if LANG == "de"
+                else "No saved sessions in data/runs/ yet."
+            )
+
+        uploaded = st.file_uploader(
+            "session.json hochladen" if LANG == "de" else "Upload session.json",
+            type=["json"],
+            key="import_upload",
+            help=(
+                "Externe Sitzung von einer anderen Maschine."
+                if LANG == "de"
+                else "External session from another machine."
+            ),
+        )
+        if uploaded is not None and st.button(
+            "📥 " + ("Hochgeladene Sitzung laden" if LANG == "de" else "Load uploaded session"),
+            use_container_width=True,
+            key="btn_load_upload",
+        ):
+            try:
+                loaded = load_session_from_json(uploaded.getvalue())
+                _apply_loaded_session(loaded, uploaded.name)
+                st.rerun()
+            except Exception as e:
+                st.error(f"⚠️ {type(e).__name__}: {e}")
 
 
 # ---------------------------------------------------------------------------
