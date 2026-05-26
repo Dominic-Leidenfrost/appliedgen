@@ -149,6 +149,38 @@ def _push_msg(role: str, content: str) -> None:
     st.session_state.messages.append({"role": role, "content": content})
 
 
+def _format_error(e: BaseException) -> str:
+    """Unwrap RetryError/ExceptionGroup so the user sees the real cause.
+
+    tenacity wraps the last failed call in a RetryError; ExceptionGroups
+    (Python 3.11+) hide useful messages inside .exceptions. Drill down to
+    the innermost exception that actually carries a message.
+    """
+    inner: BaseException = e
+    seen: set[int] = set()
+    while id(inner) not in seen:
+        seen.add(id(inner))
+        # tenacity.RetryError exposes .last_attempt — extract its exception
+        last = getattr(inner, "last_attempt", None)
+        if last is not None:
+            try:
+                inner = last.exception() or inner
+                continue
+            except Exception:
+                pass
+        # Python 3.11+ ExceptionGroup
+        excs = getattr(inner, "exceptions", None)
+        if excs:
+            inner = excs[0]
+            continue
+        # __cause__ from `raise X from Y`
+        if inner.__cause__ is not None:
+            inner = inner.__cause__
+            continue
+        break
+    return f"{type(inner).__name__}: {inner}"
+
+
 def render_problem_panel(problem: ProblemSpec) -> None:
     st.markdown(f"**Summary:** {problem.summary}")
     with st.expander(f"Entities ({len(problem.entities)})", expanded=True):
@@ -270,7 +302,7 @@ with chat_col:
                     st.session_state.phase = "transformer"
                     st.rerun()
                 except Exception as e:
-                    err = f"⚠️ Definer failed: `{type(e).__name__}: {e}`"
+                    err = f"⚠️ Definer failed: `{_format_error(e)}`"
                     st.error(err)
                     _push_msg("assistant", err)
 
@@ -290,7 +322,7 @@ with chat_col:
                             st.markdown(msg)
                         st.rerun()
                     except Exception as e:
-                        st.error(f"⚠️ Transformer failed: `{type(e).__name__}: {e}`")
+                        st.error(f"⚠️ Transformer failed: `{_format_error(e)}`")
         else:
             st.info("Pick a metaphor from the panel →")
             if st.button("🔁 Re-roll metaphors", use_container_width=True):
@@ -323,7 +355,7 @@ with chat_col:
                     _push_msg("assistant", move_msg)
                     st.rerun()
                 except Exception as e:
-                    err = f"⚠️ Explorer failed: `{type(e).__name__}: {e}`"
+                    err = f"⚠️ Explorer failed: `{_format_error(e)}`"
                     st.error(err)
                     _push_msg("assistant", err)
 
@@ -352,7 +384,7 @@ with chat_col:
                             st.markdown(sol_msg)
                         st.rerun()
                     except Exception as e:
-                        st.error(f"⚠️ Translator failed: `{type(e).__name__}: {e}`")
+                        st.error(f"⚠️ Translator failed: `{_format_error(e)}`")
         else:
             # Show solutions in chat column
             for i, sol in enumerate(pipeline.session.solutions, 1):
@@ -368,7 +400,7 @@ with chat_col:
                             st.session_state.baseline_text = baseline
                             st.rerun()
                         except Exception as e:
-                            st.error(f"⚠️ Baseline failed: `{type(e).__name__}: {e}`")
+                            st.error(f"⚠️ Baseline failed: `{_format_error(e)}`")
             else:
                 with st.expander("📊 Baseline (direct LLM, no metaphor)", expanded=True):
                     st.markdown(st.session_state.baseline_text)

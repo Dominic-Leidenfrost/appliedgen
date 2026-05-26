@@ -17,7 +17,12 @@ from dataclasses import dataclass
 from typing import Any, TypeVar
 
 from pydantic import BaseModel, ValidationError
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import (
+    retry,
+    retry_if_not_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from .mock import MOCK_REGISTRY, mock_enabled
 from .providers import check_key_for_model
@@ -64,10 +69,22 @@ class LLMClient:
 
     # ----- raw text completion --------------------------------------------
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=8))
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(min=1, max=8),
+        # LLMError comes from our key-check / config — retrying never helps.
+        # Only transient network/provider errors should be retried.
+        retry=retry_if_not_exception_type(LLMError),
+        reraise=True,
+    )
     def chat(self, messages: list[dict[str, str]], **overrides: Any) -> str:
         """Simple text completion. Lazy-imports litellm so the package can be
-        installed-but-unused without crashing imports."""
+        installed-but-unused without crashing imports.
+
+        Raises:
+            LLMError: missing API key for the requested model (no retries).
+            Exception: re-raised after up to 3 retries with exponential backoff.
+        """
         import litellm
 
         model = overrides.get("model", self.config.model)
