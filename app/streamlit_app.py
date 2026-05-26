@@ -36,6 +36,47 @@ st.set_page_config(page_title="Metaphor Machine", layout="wide", page_icon="🎭
 
 
 # ---------------------------------------------------------------------------
+# OpenRouter live catalog (cached per Streamlit process for 1 hour)
+# ---------------------------------------------------------------------------
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _fetch_openrouter_models() -> list[tuple[str, str]]:
+    """Fetch OpenRouter's public model catalog.
+
+    Endpoint is public (no auth needed for listing). Returns
+    [(display_name, litellm_model_id), …] sorted by display name.
+    Returns [] on any failure — caller falls back to curated list.
+    """
+    import json as _json
+    from urllib.error import URLError
+    from urllib.request import Request, urlopen
+
+    try:
+        req = Request(
+            "https://openrouter.ai/api/v1/models",
+            headers={"User-Agent": "metaphor-machine/0.1"},
+        )
+        with urlopen(req, timeout=10) as resp:
+            data = _json.loads(resp.read())
+    except (URLError, TimeoutError, _json.JSONDecodeError, OSError):
+        return []
+
+    out: list[tuple[str, str]] = []
+    for m in data.get("data", []):
+        model_id = m.get("id")
+        if not model_id:
+            continue
+        name = m.get("name") or model_id
+        pricing = m.get("pricing") or {}
+        # Heuristic free-tier marker: prompt cost == "0"
+        is_free = str(pricing.get("prompt", "0")) in ("0", "0.0", "0.00")
+        marker = " (free)" if is_free else ""
+        out.append((f"{name}{marker}  ·  {model_id}", f"openrouter/{model_id}"))
+    out.sort(key=lambda x: x[0].lower())
+    return out
+
+
+# ---------------------------------------------------------------------------
 # Session state
 # ---------------------------------------------------------------------------
 
@@ -81,67 +122,122 @@ with st.sidebar:
     else:
         st.success(f"Connected: {', '.join(connected)}")
 
-    # ---- Model picker: dropdown of all models from providers WITH keys ----
-    # Each option = (label_shown_in_dropdown, litellm_model_id, provider_key).
-    # Plus a "Custom..." entry so users can type any LiteLLM string.
-    CUSTOM = "__custom__"
-    available_options: list[tuple[str, str]] = []
-    for p in PROVIDERS:
-        if not p.is_available():
-            continue
-        for m in p.models:
-            available_options.append((f"{p.display} · {m.display}", m.model_id))
-    available_options.append(("✏️ Custom LiteLLM model string…", CUSTOM))
-
-    # Pick a default: current pipeline model if it's in the list, else first
-    # available option, else custom.
+    # ---- Two-step model picker: Provider → Model ----
+    # Curated list for Anthropic/OpenAI/Gemini (their catalogs are small and
+    # we want sensible defaults). For OpenRouter we fetch the live catalog —
+    # 300+ models — and add a text-filter so it stays usable.
     current_model = st.session_state.pipeline.model
-    default_idx = next(
-        (i for i, (_, mid) in enumerate(available_options) if mid == current_model),
-        0 if available_options else len(available_options) - 1,
-    )
+
+    available_provs = [p for p in PROVIDERS if p.is_available()]
 
     if mock_enabled():
         st.info("**Active model:** _mock fixtures_ (no LLM calls)")
-    elif not available_options or available_options == [("✏️ Custom LiteLLM model string…", CUSTOM)]:
+    elif not available_provs:
         st.warning(
-            "No provider has a key set, so the dropdown is empty. "
-            "Add a key to `.env` and restart, or pick mock mode."
+            "No provider has a key set. Add a key to `.env` and restart, "
+            "or run with `METAPHOR_MOCK=1`."
         )
     else:
-        choice_label = st.selectbox(
-            "Model",
-            options=[lbl for lbl, _ in available_options],
-            index=default_idx,
-            help="Only models whose provider has an API key are listed.",
+        # --- Step 1: Provider --------------------------------------------
+        # Default to whatever provider matches the currently-active model.
+        active_prefix = current_model.split("/")[0]
+        prov_default_idx = next(
+            (i for i, p in enumerate(available_provs) if p.key == active_prefix),
+            0,
         )
-        chosen_id = next(mid for lbl, mid in available_options if lbl == choice_label)
+        prov_label = st.selectbox(
+            "Provider",
+            options=[p.display for p in available_provs],
+            index=prov_default_idx,
+            key="provider_choice",
+        )
+        provider = next(p for p in available_provs if p.display == prov_label)
 
-        # If user picked Custom, show a text input for an arbitrary model string.
-        if chosen_id == CUSTOM:
-            chosen_id = st.text_input(
-                "Custom LiteLLM model string",
-                value=current_model,
-                key="custom_model",
-                help="e.g. 'gemini/gemini-2.5-flash', 'openrouter/x-ai/grok-2'",
+        # --- Step 2: Model (different UX for OpenRouter vs others) -------
+        chosen_id: str | None = None
+
+        if provider.key == "openrouter":
+            # Live catalog: fetch once per hour, cached across reruns.
+            with st.spinner("Fetching OpenRouter catalog…"):
+                catalog = _fetch_openrouter_models()
+            if not catalog:
+                st.warning(
+                    "Could not fetch OpenRouter catalog (offline?). "
+                    "Falling back to curated list."
+                )
+                catalog = [(m.display, m.model_id) for m in provider.models]
+
+            search = st.text_input(
+                "🔍 Filter",
+                value="",
+                key="or_filter",
+                placeholder="e.g. 'claude', 'gemini', 'mistral', 'free'…",
+            )
+            filtered = (
+                [(n, mid) for n, mid in catalog if search.lower() in n.lower()]
+                if search
+                else catalog
+            )
+            if not filtered:
+                st.caption("_No matches — type a different filter._")
+                chosen_id = current_model
+            else:
+                # Try to keep the user's current model selected if it survives the filter
+                default_model_idx = next(
+                    (i for i, (_, mid) in enumerate(filtered) if mid == current_model),
+                    0,
+                )
+                model_label = st.selectbox(
+                    f"Model ({len(filtered)} of {len(catalog)})",
+                    options=[n for n, _ in filtered],
+                    index=default_model_idx,
+                    key="or_model_choice",
+                )
+                chosen_id = next(mid for n, mid in filtered if n == model_label)
+        else:
+            # Curated list for Anthropic/OpenAI/Gemini
+            default_model_idx = next(
+                (i for i, m in enumerate(provider.models) if m.model_id == current_model),
+                0,
+            )
+            model_label = st.selectbox(
+                "Model",
+                options=[m.display for m in provider.models],
+                index=default_model_idx,
+                key=f"{provider.key}_model_choice",
+            )
+            chosen_id = next(
+                m.model_id for m in provider.models if m.display == model_label
             )
 
-        # Apply the choice — set_model() is a no-op if unchanged, and drops
-        # cached agents (preserving session state) if it changes.
+        # --- Custom override (always available, hidden by default) -------
+        with st.expander("✏️ Custom model string (advanced)"):
+            custom = st.text_input(
+                "LiteLLM model string",
+                value="",
+                placeholder=f"e.g. {provider.default_model()} or any other",
+                key="custom_model",
+                help="Leave blank to use the dropdown choice above. "
+                "Useful for brand-new models not in our registry.",
+            )
+            if custom.strip():
+                chosen_id = custom.strip()
+
+        # --- Apply choice ------------------------------------------------
         if chosen_id and chosen_id != st.session_state.pipeline.model:
             st.session_state.pipeline.set_model(chosen_id)
             st.toast(f"Switched to {chosen_id}", icon="🔄")
 
-        # Show resolved provider + key health for whatever is now selected.
+        # --- Status row --------------------------------------------------
         active = st.session_state.pipeline.model
-        provider_prefix = active.split("/")[0].lower()
+        active_prefix = active.split("/")[0].lower()
         provider_env = {
             "anthropic": "ANTHROPIC_API_KEY",
             "openai": "OPENAI_API_KEY",
             "gemini": "GEMINI_API_KEY",
             "openrouter": "OPENROUTER_API_KEY",
-        }.get(provider_prefix, "")
-        key_ok = provider_env and os.getenv(provider_env)
+        }.get(active_prefix, "")
+        key_ok = bool(provider_env) and bool(os.getenv(provider_env))
         st.caption(
             f"{'🟢' if key_ok else '🔴'} Active: `{active}`"
             + ("" if key_ok else f" — no key for `{provider_env or 'this provider'}`")
