@@ -41,33 +41,156 @@ from metaphor_machine.storage.markdown_store import MarkdownStore  # noqa: E402
 I18N: dict[str, dict[str, str]] = {
     "en": {},  # English is the canonical, no translation needed
     "de": {
-        # Sidebar
+        # --- Sidebar header / status ---
+        "Connected": "Verbunden",
+        "No API key found. Set one of `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY` or `OPENROUTER_API_KEY` in `.env`, then restart `streamlit run` (the .env is only read at startup). Or run with `METAPHOR_MOCK=1`.": (
+            "Kein API-Key gefunden. Trage einen von `ANTHROPIC_API_KEY`, "
+            "`OPENAI_API_KEY`, `GEMINI_API_KEY` oder `OPENROUTER_API_KEY` "
+            "in `.env` ein und starte `streamlit run` neu (die .env wird "
+            "nur beim Start gelesen). Oder starte mit `METAPHOR_MOCK=1`."
+        ),
+        "**Mock mode** — no LLM calls.": "**Mock-Modus** — keine LLM-Aufrufe.",
+        "**Active model:** _mock fixtures_ (no LLM calls)": (
+            "**Aktives Modell:** _Mock-Daten_ (keine LLM-Aufrufe)"
+        ),
+        # --- Model picker ---
         "Provider": "Anbieter",
         "Model": "Modell",
+        "Only models whose provider has an API key are listed.": (
+            "Nur Modelle deren Anbieter einen API-Key hinterlegt hat."
+        ),
         "🔍 Filter": "🔍 Filter",
+        "e.g. 'claude', 'gemini', 'mistral', 'free'…": "z.B. 'claude', 'gemini', 'mistral', 'free'…",
+        "Fetching OpenRouter catalog…": "OpenRouter-Katalog wird geladen…",
+        "Could not fetch OpenRouter catalog (offline?). Falling back to curated list.": (
+            "OpenRouter-Katalog nicht erreichbar (offline?). Fallback auf kuratierte Liste."
+        ),
+        "_No matches — type a different filter._": "_Keine Treffer — anderen Filter eingeben._",
+        "✏️ Custom model string (advanced)": "✏️ Eigener Modell-String (erweitert)",
+        "LiteLLM model string": "LiteLLM Modell-String",
+        "Leave blank to use the dropdown choice above. Useful for brand-new models not in our registry.": (
+            "Leer lassen um die Dropdown-Auswahl oben zu verwenden. "
+            "Nützlich für ganz neue Modelle die noch nicht in der Registry sind."
+        ),
         "Per-agent temperatures": "Temperatur pro Agent",
+        "Definer": "Definer",
+        "Transformer": "Transformer",
+        "Explorer": "Explorer",
+        "Translator": "Translator",
+        "Default temperature": "Standard-Temperatur",
+        # --- Sidebar buttons / actions ---
         "💾 Save session": "💾 Sitzung speichern",
         "🔄 Reset session": "🔄 Sitzung zurücksetzen",
-        "Conversation": "Konversation",
-        "Problem structure": "Problemstruktur",
-        # Phase progress
+        # --- Phase progress (sidebar) ---
         "1. Definer": "1. Definer",
         "2. Transformer": "2. Transformer",
         "3. Explorer": "3. Explorer",
         "4. Translator": "4. Translator",
-        # Header
+        "{done}/{total} stages": "{done}/{total} Phasen",
+        # --- Top / phase headers ---
+        "🎭 Metaphor Machine": "🎭 Metaphor Machine",
+        "Describe your problem → the Definer extracts its structure → (soon) it gets mapped into a metaphor world to brainstorm in.": (
+            "Beschreibe dein Problem → der Definer extrahiert die Struktur → "
+            "es wird in eine Metapher-Welt überführt, in der du brainstormen kannst."
+        ),
+        # --- Chat column ---
+        "Conversation": "Konversation",
         "Describe your problem…": "Beschreibe dein Problem…",
-        # Explorer
+        "Definer is extracting structure...": "Definer extrahiert die Struktur…",
+        "⚠️ Definer failed: `{err}`": "⚠️ Definer-Fehler: `{err}`",
+        # --- Transformer phase ---
+        "Generate 3 metaphor candidates": "3 Metaphern generieren",
+        "⚙️ Generate 3 metaphors": "⚙️ 3 Metaphern generieren",
+        "Generating 3 metaphors in parallel (one per seed domain)…": (
+            "Generiere 3 Metaphern parallel (eine pro Seed-Domain)…"
+        ),
+        "Generated {n} metaphor candidate(s). Pick one to begin exploring.": (
+            "{n} Metaphern generiert. Wähle eine aus um die Erkundung zu starten."
+        ),
+        "Only {got} of {want} metaphors succeeded — {fail_count} failed silently.": (
+            "Nur {got} von {want} Metaphern erfolgreich — {fail_count} fehlgeschlagen."
+        ),
+        "Retry failed runs": "Fehlgeschlagene Läufe wiederholen",
+        "Pick a metaphor from the panel →": "Wähle eine Metapher aus dem Panel →",
+        "Select": "Auswählen",
+        # --- Explorer phase ---
+        "Exploring **{domain}** — the Explorer proposes moves, you curate. Move count: **{n}**.": (
+            "Erkunde **{domain}** — der Explorer schlägt Züge vor, du kuratierst. "
+            "Anzahl Züge: **{n}**."
+        ),
+        "Steering text (gets sent with the NEXT click below)": (
+            "Lenkungstext (wird beim NÄCHSTEN Button-Klick unten mitgesendet)"
+        ),
+        "Leave empty for full autonomy. Or steer: 'focus on the quieter members', 'try a structural rule change', 'the last consequence wasn't realistic, redo it'…": (
+            "Leer lassen für volle Autonomie. Oder lenken: 'fokussiere auf die "
+            "leiseren Mitglieder', 'versuch eine Regeländerung', 'die letzte "
+            "Konsequenz war unrealistisch, mach sie neu'…"
+        ),
         "🎲 Generate first move": "🎲 Ersten Zug generieren",
         "🎲 Continue exploring": "🎲 Weiter erkunden",
         "🔄 Try different angle": "🔄 Anderen Ansatz versuchen",
         "↩️ Undo last": "↩️ Letzten Zug rückgängig",
-        "Optional steering for the next move": "Optionale Lenkung für den nächsten Zug",
+        "Force the next move to use a strategy structurally unlike all prior moves.": (
+            "Erzwingt einen strukturell anderen Ansatz als alle bisherigen Züge."
+        ),
+        "Remove the most recent move (e.g. if it broke the metaphor or felt off).": (
+            "Entfernt den letzten Zug (z.B. wenn er die Metapher gebrochen hat)."
+        ),
+        "Explorer proposing next move…": "Explorer plant den nächsten Zug…",
+        "Explorer trying a fundamentally different strategy…": (
+            "Explorer versucht eine fundamental andere Strategie…"
+        ),
+        "You have **{n} moves** — usually plenty for the Translator. Consider proceeding to solutions.": (
+            "Du hast **{n} Züge** — meistens reichlich für den Translator. "
+            "Vielleicht jetzt zu den Lösungen weitergehen."
+        ),
         "🔁 Translate moves to solutions →": "🔁 Züge in Lösungen übersetzen →",
-        # Status
-        "Connected": "Verbunden",
-        "Active model": "Aktives Modell",
-        "Active language": "Aktive Sprache",
+        "End the exploration phase. Each move becomes one candidate solution.": (
+            "Beendet die Erkundungsphase. Jeder Zug wird zu einer Lösung."
+        ),
+        "⚠️ Explorer failed: `{err}`": "⚠️ Explorer-Fehler: `{err}`",
+        # --- Translator phase ---
+        "⚙️ Run Translator": "⚙️ Translator starten",
+        "Translator mapping insights back to original domain…": (
+            "Translator übersetzt Einsichten zurück in die Original-Domäne…"
+        ),
+        "Generated **{n} solution(s)**. See the panel for details.": (
+            "**{n} Lösung(en)** generiert. Details rechts."
+        ),
+        "🔍 Show baseline LLM answer (no metaphor)": (
+            "🔍 Baseline-Antwort anzeigen (ohne Metapher)"
+        ),
+        "Generating baseline…": "Baseline wird generiert…",
+        "📊 Baseline (direct LLM, no metaphor)": "📊 Baseline (direktes LLM, ohne Metapher)",
+        "← Back to Explorer": "← Zurück zum Explorer",
+        "⚠️ Translator failed: `{err}`": "⚠️ Translator-Fehler: `{err}`",
+        "⚠️ Baseline failed: `{err}`": "⚠️ Baseline-Fehler: `{err}`",
+        # --- Structure panel ---
+        "Problem structure": "Problemstruktur",
+        "Summary:": "Zusammenfassung:",
+        "Entities ({n})": "Entitäten ({n})",
+        "Relations ({n})": "Relationen ({n})",
+        "Tensions ({n})": "Spannungen ({n})",
+        "_(none detected)_": "_(keine erkannt)_",
+        "Constraints / Goals": "Einschränkungen / Ziele",
+        "Raw JSON": "Roh-JSON",
+        "Mappings ({n})": "Mappings ({n})",
+        "Preserved": "Erhalten",
+        "Broken": "Gebrochen",
+        "Caveats": "Vorbehalte",
+        "**Move {idx}: {actor}**": "**Zug {idx}: {actor}**",
+        "**Solution {idx}**": "**Lösung {idx}**",
+        # --- Misc / save ---
+        "Saved to `{name}`": "Gespeichert nach `{name}`",
+        "Last saved: `{name}`": "Zuletzt gespeichert: `{name}`",
+        "(Undid Move {n}: {actor} — {action_short}…)": (
+            "(Zug {n} rückgängig gemacht: {actor} — {action_short}…)"
+        ),
+        "Metaphor **{domain}** selected. Click **🎲 Generate first move** below — the Explorer will propose moves and you curate (steer, redo, or accept).": (
+            "Metapher **{domain}** ausgewählt. Klicke unten auf "
+            "**🎲 Ersten Zug generieren** — der Explorer schlägt Züge "
+            "vor und du kuratierst (lenken, neu machen, akzeptieren)."
+        ),
     },
 }
 
@@ -193,16 +316,19 @@ with st.sidebar:
     connected = [name for name, env in provider_keys.items() if os.getenv(env)]
 
     if mock_enabled():
-        st.warning("**Mock mode** — no LLM calls.")
+        st.warning(t("**Mock mode** — no LLM calls.", LANG))
     elif not connected:
         st.error(
-            "No API key found. Set one of `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, "
-            "`GEMINI_API_KEY` or `OPENROUTER_API_KEY` in `.env`, then restart "
-            "`streamlit run` (the .env is only read at startup). "
-            "Or run with `METAPHOR_MOCK=1`."
+            t(
+                "No API key found. Set one of `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, "
+                "`GEMINI_API_KEY` or `OPENROUTER_API_KEY` in `.env`, then restart "
+                "`streamlit run` (the .env is only read at startup). "
+                "Or run with `METAPHOR_MOCK=1`.",
+                LANG,
+            )
         )
     else:
-        st.success(f"Connected: {', '.join(connected)}")
+        st.success(f"{t('Connected', LANG)}: {', '.join(connected)}")
 
     # ---- Two-step model picker: Provider → Model ----
     # Curated list for Anthropic/OpenAI/Gemini (their catalogs are small and
@@ -213,7 +339,7 @@ with st.sidebar:
     available_provs = [p for p in PROVIDERS if p.is_available()]
 
     if mock_enabled():
-        st.info("**Active model:** _mock fixtures_ (no LLM calls)")
+        st.info(t("**Active model:** _mock fixtures_ (no LLM calls)", LANG))
     elif not available_provs:
         st.warning(
             "No provider has a key set. Add a key to `.env` and restart, "
@@ -228,7 +354,7 @@ with st.sidebar:
             0,
         )
         prov_label = st.selectbox(
-            "Provider",
+            t("Provider", LANG),
             options=[p.display for p in available_provs],
             index=prov_default_idx,
             key="provider_choice",
@@ -240,20 +366,22 @@ with st.sidebar:
 
         if provider.key == "openrouter":
             # Live catalog: fetch once per hour, cached across reruns.
-            with st.spinner("Fetching OpenRouter catalog…"):
+            with st.spinner(t("Fetching OpenRouter catalog…", LANG)):
                 catalog = _fetch_openrouter_models()
             if not catalog:
                 st.warning(
-                    "Could not fetch OpenRouter catalog (offline?). "
-                    "Falling back to curated list."
+                    t(
+                        "Could not fetch OpenRouter catalog (offline?). Falling back to curated list.",
+                        LANG,
+                    )
                 )
                 catalog = [(m.display, m.model_id) for m in provider.models]
 
             search = st.text_input(
-                "🔍 Filter",
+                t("🔍 Filter", LANG),
                 value="",
                 key="or_filter",
-                placeholder="e.g. 'claude', 'gemini', 'mistral', 'free'…",
+                placeholder=t("e.g. 'claude', 'gemini', 'mistral', 'free'…", LANG),
             )
             filtered = (
                 [(n, mid) for n, mid in catalog if search.lower() in n.lower()]
@@ -261,7 +389,7 @@ with st.sidebar:
                 else catalog
             )
             if not filtered:
-                st.caption("_No matches — type a different filter._")
+                st.caption(t("_No matches — type a different filter._", LANG))
                 chosen_id = current_model
             else:
                 # Try to keep the user's current model selected if it survives the filter
@@ -270,7 +398,7 @@ with st.sidebar:
                     0,
                 )
                 model_label = st.selectbox(
-                    f"Model ({len(filtered)} of {len(catalog)})",
+                    f"{t('Model', LANG)} ({len(filtered)} / {len(catalog)})",
                     options=[n for n, _ in filtered],
                     index=default_model_idx,
                     key="or_model_choice",
@@ -283,7 +411,7 @@ with st.sidebar:
                 0,
             )
             model_label = st.selectbox(
-                "Model",
+                t("Model", LANG),
                 options=[m.display for m in provider.models],
                 index=default_model_idx,
                 key=f"{provider.key}_model_choice",
@@ -293,14 +421,17 @@ with st.sidebar:
             )
 
         # --- Custom override (always available, hidden by default) -------
-        with st.expander("✏️ Custom model string (advanced)"):
+        with st.expander(t("✏️ Custom model string (advanced)", LANG)):
             custom = st.text_input(
-                "LiteLLM model string",
+                t("LiteLLM model string", LANG),
                 value="",
-                placeholder=f"e.g. {provider.default_model()} or any other",
+                placeholder=f"z.B. {provider.default_model()}" if LANG == "de" else f"e.g. {provider.default_model()}",
                 key="custom_model",
-                help="Leave blank to use the dropdown choice above. "
-                "Useful for brand-new models not in our registry.",
+                help=t(
+                    "Leave blank to use the dropdown choice above. "
+                    "Useful for brand-new models not in our registry.",
+                    LANG,
+                ),
             )
             if custom.strip():
                 chosen_id = custom.strip()
@@ -325,24 +456,27 @@ with st.sidebar:
             + ("" if key_ok else f" — no key for `{provider_env or 'this provider'}`")
         )
 
-    with st.expander("Per-agent temperatures"):
-        st.slider("Definer", 0.0, 1.5, 0.2, 0.1, key="temp_definer")
-        st.slider("Transformer", 0.0, 1.5, 0.9, 0.1, key="temp_transformer")
-        st.slider("Explorer", 0.0, 1.5, 0.7, 0.1, key="temp_explorer")
-        st.slider("Translator", 0.0, 1.5, 0.3, 0.1, key="temp_translator")
+    with st.expander(t("Per-agent temperatures", LANG)):
+        st.slider(t("Definer", LANG), 0.0, 1.5, 0.2, 0.1, key="temp_definer")
+        st.slider(t("Transformer", LANG), 0.0, 1.5, 0.9, 0.1, key="temp_transformer")
+        st.slider(t("Explorer", LANG), 0.0, 1.5, 0.7, 0.1, key="temp_explorer")
+        st.slider(t("Translator", LANG), 0.0, 1.5, 0.3, 0.1, key="temp_translator")
 
     st.divider()
 
     # Phase progress
     session = st.session_state.pipeline.session
     steps = [
-        ("1. Definer", session.problem is not None),
-        ("2. Transformer", bool(session.metaphor_candidates)),
-        ("3. Explorer", bool(session.moves)),
-        ("4. Translator", bool(session.solutions)),
+        (t("1. Definer", LANG), session.problem is not None),
+        (t("2. Transformer", LANG), bool(session.metaphor_candidates)),
+        (t("3. Explorer", LANG), bool(session.moves)),
+        (t("4. Translator", LANG), bool(session.solutions)),
     ]
     done = sum(1 for _, ok in steps if ok)
-    st.progress(done / len(steps), text=f"{done}/{len(steps)} stages")
+    st.progress(
+        done / len(steps),
+        text=t("{done}/{total} stages", LANG).format(done=done, total=len(steps)),
+    )
     for name, ok in steps:
         st.markdown(f"{'✅' if ok else '⏳'} {name}")
 
@@ -355,9 +489,13 @@ with st.sidebar:
             slug = (session.problem.summary[:30].replace(" ", "_").lower() or "session")
             saved = store.save(session, slug=slug)
             st.session_state.saved_path = str(saved)
-            st.success(f"Saved to `{saved.name}`")
+            st.success(t("Saved to `{name}`", LANG).format(name=saved.name))
     if st.session_state.saved_path:
-        st.caption(f"Last saved: `{Path(st.session_state.saved_path).name}`")
+        st.caption(
+            t("Last saved: `{name}`", LANG).format(
+                name=Path(st.session_state.saved_path).name
+            )
+        )
 
     if st.button(t("🔄 Reset session", LANG), use_container_width=True):
         st.session_state.pipeline = Pipeline()
@@ -420,25 +558,31 @@ def _format_error(e: BaseException) -> str:
 
 
 def render_problem_panel(problem: ProblemSpec) -> None:
-    st.markdown(f"**Summary:** {problem.summary}")
-    with st.expander(f"Entities ({len(problem.entities)})", expanded=True):
+    st.markdown(f"**{t('Summary:', LANG)}** {problem.summary}")
+    with st.expander(
+        t("Entities ({n})", LANG).format(n=len(problem.entities)), expanded=True
+    ):
         for e in problem.entities:
-            attrs = ", ".join(e.attributes) or "_none_"
+            attrs = ", ".join(e.attributes) or t("_(none detected)_", LANG)
             st.markdown(f"- **{e.name}** _({e.role})_ — {attrs}")
-    with st.expander(f"Relations ({len(problem.relations)})", expanded=False):
+    with st.expander(
+        t("Relations ({n})", LANG).format(n=len(problem.relations)), expanded=False
+    ):
         for r in problem.relations:
             st.markdown(f"- `{r.source}` --{r.kind}--> `{r.target}` _(str {r.strength:.1f})_")
-    with st.expander(f"Tensions ({len(problem.tensions)})", expanded=True):
-        for t in problem.tensions:
-            st.markdown(f"- ⚡ {t}")
+    with st.expander(
+        t("Tensions ({n})", LANG).format(n=len(problem.tensions)), expanded=True
+    ):
+        for t_ in problem.tensions:
+            st.markdown(f"- ⚡ {t_}")
         if not problem.tensions:
-            st.caption("_(none detected)_")
-    with st.expander("Constraints / Goals", expanded=False):
+            st.caption(t("_(none detected)_", LANG))
+    with st.expander(t("Constraints / Goals", LANG), expanded=False):
         for c in problem.constraints:
             st.markdown(f"- ⛔ {c}")
         for g in problem.goals:
             st.markdown(f"- 🎯 {g}")
-    with st.expander("Raw JSON", expanded=False):
+    with st.expander(t("Raw JSON", LANG), expanded=False):
         st.json(problem.model_dump())
 
 
@@ -449,18 +593,25 @@ def render_metaphor_card(m: MetaphorSpec, idx: int, chosen: bool) -> None:
             prefix = "✅ " if chosen else ""
             st.markdown(f"#### {prefix}{m.domain.replace('_', ' ').title()}")
         with col_pick:
-            if not chosen and st.button("Select", key=f"pick_{idx}", use_container_width=True):
+            if not chosen and st.button(
+                t("Select", LANG), key=f"pick_{idx}", use_container_width=True
+            ):
                 st.session_state.pipeline.session.chosen_metaphor = m
                 st.session_state.phase = "explorer"
                 _push_msg(
                     "assistant",
-                    f"Metaphor **{m.domain.replace('_', ' ').title()}** selected. "
-                    "Click **🎲 Generate first move** below — the Explorer will "
-                    "propose moves and you curate (steer, redo, or accept).",
+                    t(
+                        "Metaphor **{domain}** selected. Click **🎲 Generate first move** "
+                        "below — the Explorer will propose moves and you curate (steer, "
+                        "redo, or accept).",
+                        LANG,
+                    ).format(domain=m.domain.replace("_", " ").title()),
                 )
                 st.rerun()
         st.caption(m.domain_intro)
-        with st.expander(f"Mappings ({len(m.mappings)})", expanded=chosen):
+        with st.expander(
+            t("Mappings ({n})", LANG).format(n=len(m.mappings)), expanded=chosen
+        ):
             for mp in m.mappings:
                 c1, c2, c3, c4 = st.columns([3, 3, 1, 3])
                 c1.markdown(f"**{mp.original}**")
@@ -468,18 +619,20 @@ def render_metaphor_card(m: MetaphorSpec, idx: int, chosen: bool) -> None:
                 c3.markdown(f"{_fidelity_color(mp.fidelity)} `{mp.fidelity:.2f}`")
                 c4.caption(f"⚠️ {mp.leak}" if mp.leak else "_no leak_")
         if m.invariants_preserved:
-            with st.expander("Preserved"):
+            with st.expander(t("Preserved", LANG)):
                 for inv in m.invariants_preserved:
                     st.markdown(f"- ✔ {inv}")
         if m.invariants_broken:
-            with st.expander("Broken"):
+            with st.expander(t("Broken", LANG)):
                 for inv in m.invariants_broken:
                     st.markdown(f"- ✖ {inv}")
 
 
 def render_move(move: Move, idx: int) -> None:
     with st.container(border=True):
-        st.markdown(f"**Move {idx}: {move.actor}**")
+        st.markdown(
+            t("**Move {idx}: {actor}**", LANG).format(idx=idx, actor=move.actor)
+        )
         st.markdown(f"_{move.action}_")
         st.markdown(f"**→** {move.consequence}")
         if move.obstacle:
@@ -489,13 +642,13 @@ def render_move(move: Move, idx: int) -> None:
 def render_solution(sol: Solution, idx: int) -> None:
     conf_color = "🟢" if sol.confidence >= 0.7 else ("🟡" if sol.confidence >= 0.5 else "🔴")
     with st.container(border=True):
-        st.markdown(
-            f"**Solution {idx}** {conf_color} confidence `{sol.confidence:.0%}`"
-        )
-        st.caption(f"_Metaphor: {sol.metaphor_idea}_")
+        sol_label = t("**Solution {idx}**", LANG).format(idx=idx)
+        conf_label = "Konfidenz" if LANG == "de" else "confidence"
+        st.markdown(f"{sol_label} {conf_color} {conf_label} `{sol.confidence:.0%}`")
+        st.caption(f"_{'Metapher' if LANG == 'de' else 'Metaphor'}: {sol.metaphor_idea}_")
         st.markdown(f"**→ {sol.original_domain_translation}**")
         if sol.caveats:
-            with st.expander("Caveats"):
+            with st.expander(t("Caveats", LANG)):
                 for c in sol.caveats:
                     st.markdown(f"- ⚠️ {c}")
 
@@ -508,7 +661,7 @@ pipeline: Pipeline = st.session_state.pipeline
 phase: str = st.session_state.phase
 
 with chat_col:
-    st.subheader("Conversation")
+    st.subheader(t("Conversation", LANG))
 
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
@@ -523,51 +676,92 @@ with chat_col:
                 st.markdown(prompt)
             with st.chat_message("assistant"):
                 try:
-                    with st.spinner("Definer extracting structure…"):
+                    with st.spinner(t("Definer is extracting structure...", LANG)):
                         problem = pipeline.run_definer(prompt)
                     p = problem
-                    summary_msg = (
-                        f"Extracted **{len(p.entities)} entities**, "
-                        f"**{len(p.relations)} relations**, "
-                        f"**{len(p.tensions)} tensions**.\n\n"
-                        f"_Summary:_ {p.summary}"
-                    )
-                    if p.unknowns:
-                        summary_msg += "\n\n**Open questions:**\n" + "\n".join(
-                            f"- {u}" for u in p.unknowns
+                    if LANG == "de":
+                        summary_msg = (
+                            f"Extrahiert: **{len(p.entities)} Entitäten**, "
+                            f"**{len(p.relations)} Relationen**, "
+                            f"**{len(p.tensions)} Spannungen**.\n\n"
+                            f"_Zusammenfassung:_ {p.summary}"
                         )
+                        if p.unknowns:
+                            summary_msg += "\n\n**Offene Fragen:**\n" + "\n".join(
+                                f"- {u}" for u in p.unknowns
+                            )
+                    else:
+                        summary_msg = (
+                            f"Extracted **{len(p.entities)} entities**, "
+                            f"**{len(p.relations)} relations**, "
+                            f"**{len(p.tensions)} tensions**.\n\n"
+                            f"_Summary:_ {p.summary}"
+                        )
+                        if p.unknowns:
+                            summary_msg += "\n\n**Open questions:**\n" + "\n".join(
+                                f"- {u}" for u in p.unknowns
+                            )
                     st.markdown(summary_msg)
                     _push_msg("assistant", summary_msg)
                     st.session_state.phase = "transformer"
                     st.rerun()
                 except Exception as e:
-                    err = f"⚠️ Definer failed: `{_format_error(e)}`"
+                    err = t("⚠️ Definer failed: `{err}`", LANG).format(err=_format_error(e))
                     st.error(err)
                     _push_msg("assistant", err)
 
     # --- Phase: Transformer (pick a metaphor) ---
     elif phase == "transformer":
         if not pipeline.session.metaphor_candidates:
-            if st.button("🎲 Generate 3 metaphors", type="primary", use_container_width=True):
-                with st.spinner("Running 3 Transformers in parallel…"):
+            if st.button(
+                t("⚙️ Generate 3 metaphors", LANG),
+                type="primary",
+                use_container_width=True,
+            ):
+                with st.spinner(
+                    t("Generating 3 metaphors in parallel (one per seed domain)…", LANG)
+                ):
                     try:
                         candidates = pipeline.run_transformer(n=3)
-                        msg = (
-                            f"Generated **{len(candidates)} metaphor worlds**. "
-                            "Pick one from the panel on the right."
-                        )
+                        msg = t(
+                            "Generated {n} metaphor candidate(s). Pick one to begin exploring.",
+                            LANG,
+                        ).format(n=len(candidates))
                         _push_msg("assistant", msg)
                         with st.chat_message("assistant"):
                             st.markdown(msg)
                         st.rerun()
                     except Exception as e:
-                        st.error(f"⚠️ Transformer failed: `{_format_error(e)}`")
+                        st.error(
+                            t("⚠️ Definer failed: `{err}`", LANG)
+                            .replace("Definer", "Transformer")
+                            .format(err=_format_error(e))
+                        )
         else:
-            st.info("Pick a metaphor from the panel →")
-            if st.button("🔁 Re-roll metaphors", use_container_width=True):
-                pipeline.session.metaphor_candidates = []
-                pipeline.session.chosen_metaphor = None
-                st.rerun()
+            # Surface silent partial failures (e.g. 2 of 3 succeeded)
+            n_got = len(pipeline.session.metaphor_candidates)
+            errors = getattr(pipeline, "last_transformer_errors", [])
+            if n_got < 3 and errors:
+                fail_count = len(errors)
+                st.warning(
+                    t(
+                        "Only {got} of {want} metaphors succeeded — {fail_count} failed silently.",
+                        LANG,
+                    ).format(got=n_got, want=3, fail_count=fail_count)
+                )
+                # Show first error for diagnostics
+                with st.expander(
+                    "🔍 " + ("Fehlerdetails" if LANG == "de" else "Error details")
+                ):
+                    for err_line in errors:
+                        st.code(err_line)
+                if st.button(t("Retry failed runs", LANG), use_container_width=True):
+                    # Re-roll all of them
+                    pipeline.session.metaphor_candidates = []
+                    pipeline.session.chosen_metaphor = None
+                    pipeline.last_transformer_errors = []
+                    st.rerun()
+            st.info(t("Pick a metaphor from the panel →", LANG))
 
     # --- Phase: Explorer (autonomous generation, user curates) ---
     elif phase == "explorer":
@@ -576,19 +770,20 @@ with chat_col:
         if chosen:
             domain_name = chosen.domain.replace("_", " ").title()
             st.caption(
-                f"Exploring **{domain_name}** — the Explorer proposes moves, "
-                f"you curate. Move count: **{n_moves}**."
+                t(
+                    "Exploring **{domain}** — the Explorer proposes moves, you curate. "
+                    "Move count: **{n}**.",
+                    LANG,
+                ).format(domain=domain_name, n=n_moves)
             )
-
-        # --- Control row: Generate / Try different / Undo --------------
-        col_gen, col_diff, col_undo = st.columns([3, 3, 2])
 
         def _run_explorer(directive: str | None, force_different: bool) -> None:
             try:
-                spinner_text = (
+                spinner_text = t(
                     "Explorer trying a fundamentally different strategy…"
                     if force_different
-                    else "Explorer proposing next move…"
+                    else "Explorer proposing next move…",
+                    LANG,
                 )
                 with st.spinner(spinner_text):
                     move = pipeline.run_explorer_turn(
@@ -596,21 +791,59 @@ with chat_col:
                         force_different=force_different,
                     )
                 move_msg = (
-                    f"**Move {len(pipeline.session.moves)} — {move.actor}**\n\n"
-                    f"_{move.action}_\n\n"
-                    f"**→** {move.consequence}\n\n"
-                    f"🚧 _{move.obstacle}_"
+                    t("**Move {idx}: {actor}**", LANG).format(
+                        idx=len(pipeline.session.moves), actor=move.actor
+                    )
+                    + f"\n\n_{move.action}_\n\n**→** {move.consequence}\n\n🚧 _{move.obstacle}_"
                 )
                 _push_msg("assistant", move_msg)
-                st.session_state.steering_input = ""  # clear steering after use
+                # Clear steering ONLY AFTER it has been consumed; do not
+                # mutate st.session_state.steering_input directly during
+                # the same run as the text_area widget — Streamlit forbids
+                # that. Use a sentinel flag instead, processed at the top
+                # of the next rerun.
+                st.session_state.clear_steering_on_next_run = True
                 st.rerun()
             except Exception as e:
-                err = f"⚠️ Explorer failed: `{_format_error(e)}`"
+                err = t("⚠️ Explorer failed: `{err}`", LANG).format(err=_format_error(e))
                 st.error(err)
                 _push_msg("assistant", err)
 
-        # Read steering text once so all three buttons can pass it in
+        # Process pending steering-clear signal from a previous run BEFORE
+        # creating the widget (Streamlit doesn't allow mutating widget
+        # state after the widget is instantiated).
+        if st.session_state.get("clear_steering_on_next_run"):
+            st.session_state.steering_input = ""
+            st.session_state.clear_steering_on_next_run = False
+
+        # --- STEERING TEXT FIRST (visible above the buttons) ----------
+        # Putting the text input ABOVE the buttons makes the flow obvious:
+        # 1) type optional steering (or leave blank)
+        # 2) click one of the buttons below — your text gets sent with that click.
+        st.text_area(
+            t("Steering text (gets sent with the NEXT click below)", LANG),
+            value=st.session_state.get("steering_input", ""),
+            key="steering_input",
+            height=80,
+            placeholder=t(
+                "Leave empty for full autonomy. Or steer: 'focus on the quieter "
+                "members', 'try a structural rule change', 'the last consequence "
+                "wasn't realistic, redo it'…",
+                LANG,
+            ),
+        )
         steering = st.session_state.get("steering_input", "")
+
+        # Visual cue: arrow pointing from text → buttons, so it's obvious
+        # the text input feeds into the buttons.
+        if steering.strip():
+            st.caption(
+                ("⬇️ " + ("Wird mit dem nächsten Klick mitgesendet:" if LANG == "de"
+                          else "Will be sent with the next click below:"))
+            )
+
+        # --- Control row: Generate / Try different / Undo --------------
+        col_gen, col_diff, col_undo = st.columns([3, 3, 2])
 
         with col_gen:
             btn_label = (
@@ -626,7 +859,10 @@ with chat_col:
                 t("🔄 Try different angle", LANG),
                 use_container_width=True,
                 disabled=disabled,
-                help="Force the next move to use a strategy structurally unlike all prior moves.",
+                help=t(
+                    "Force the next move to use a strategy structurally unlike all prior moves.",
+                    LANG,
+                ),
             ):
                 _run_explorer(directive=steering or None, force_different=True)
 
@@ -636,34 +872,32 @@ with chat_col:
                 t("↩️ Undo last", LANG),
                 use_container_width=True,
                 disabled=disabled,
-                help="Remove the most recent move (e.g. if it broke the metaphor or felt off).",
+                help=t(
+                    "Remove the most recent move (e.g. if it broke the metaphor or felt off).",
+                    LANG,
+                ),
             ):
                 popped = pipeline.undo_last_move()
                 if popped:
                     _push_msg(
                         "assistant",
-                        f"_(Undid Move {n_moves}: {popped.actor} — {popped.action[:60]}…)_",
+                        t(
+                            "(Undid Move {n}: {actor} — {action_short}…)",
+                            LANG,
+                        ).format(
+                            n=n_moves, actor=popped.actor, action_short=popped.action[:60]
+                        ),
                     )
                     st.rerun()
-
-        # --- Optional steering text ------------------------------------
-        st.text_area(
-            t("Optional steering for the next move", LANG),
-            value=steering,
-            key="steering_input",
-            height=68,
-            placeholder=(
-                "Leave empty for full autonomy. Or steer: 'focus on the quieter "
-                "members', 'try a structural rule change', 'the last consequence "
-                "wasn't realistic, redo it'…"
-            ),
-        )
 
         # --- Hint when there's enough material to translate -----------
         if n_moves >= 5:
             st.info(
-                f"You have **{n_moves} moves** — usually plenty for the Translator. "
-                "Consider proceeding to solutions."
+                t(
+                    "You have **{n} moves** — usually plenty for the Translator. "
+                    "Consider proceeding to solutions.",
+                    LANG,
+                ).format(n=n_moves)
             )
 
         if pipeline.session.moves:
@@ -671,7 +905,10 @@ with chat_col:
                 t("🔁 Translate moves to solutions →", LANG),
                 type="secondary" if n_moves < 3 else "primary",
                 use_container_width=True,
-                help="End the exploration phase. Each move becomes one candidate solution.",
+                help=t(
+                    "End the exploration phase. Each move becomes one candidate solution.",
+                    LANG,
+                ),
             ):
                 st.session_state.phase = "translator"
                 st.rerun()
@@ -680,21 +917,29 @@ with chat_col:
     elif phase == "translator":
         if not pipeline.session.solutions:
             if st.button(
-                "⚙️ Run Translator", type="primary", use_container_width=True
+                t("⚙️ Run Translator", LANG),
+                type="primary",
+                use_container_width=True,
             ):
-                with st.spinner("Translator mapping insights back to original domain…"):
+                with st.spinner(
+                    t("Translator mapping insights back to original domain…", LANG)
+                ):
                     try:
                         solutions = pipeline.run_translator()
-                        sol_msg = (
-                            f"Generated **{len(solutions)} solution(s)**. "
-                            "See the panel for details."
-                        )
+                        sol_msg = t(
+                            "Generated **{n} solution(s)**. See the panel for details.",
+                            LANG,
+                        ).format(n=len(solutions))
                         _push_msg("assistant", sol_msg)
                         with st.chat_message("assistant"):
                             st.markdown(sol_msg)
                         st.rerun()
                     except Exception as e:
-                        st.error(f"⚠️ Translator failed: `{_format_error(e)}`")
+                        st.error(
+                            t("⚠️ Translator failed: `{err}`", LANG).format(
+                                err=_format_error(e)
+                            )
+                        )
         else:
             # Show solutions in chat column
             for i, sol in enumerate(pipeline.session.solutions, 1):
@@ -703,19 +948,28 @@ with chat_col:
             # Baseline comparison
             st.divider()
             if st.session_state.baseline_text is None:
-                if st.button("🔍 Show baseline LLM answer (no metaphor)", use_container_width=True):
-                    with st.spinner("Generating baseline…"):
+                if st.button(
+                    t("🔍 Show baseline LLM answer (no metaphor)", LANG),
+                    use_container_width=True,
+                ):
+                    with st.spinner(t("Generating baseline…", LANG)):
                         try:
                             baseline = pipeline.run_baseline()
                             st.session_state.baseline_text = baseline
                             st.rerun()
                         except Exception as e:
-                            st.error(f"⚠️ Baseline failed: `{_format_error(e)}`")
+                            st.error(
+                                t("⚠️ Baseline failed: `{err}`", LANG).format(
+                                    err=_format_error(e)
+                                )
+                            )
             else:
-                with st.expander("📊 Baseline (direct LLM, no metaphor)", expanded=True):
+                with st.expander(
+                    t("📊 Baseline (direct LLM, no metaphor)", LANG), expanded=True
+                ):
                     st.markdown(st.session_state.baseline_text)
 
-            if st.button("← Back to Explorer", use_container_width=True):
+            if st.button(t("← Back to Explorer", LANG), use_container_width=True):
                 st.session_state.phase = "explorer"
                 st.rerun()
 
@@ -728,16 +982,20 @@ with structure_col:
     session = pipeline.session
 
     if phase == "definer" and session.problem is None:
-        st.subheader("Problem structure")
-        st.caption("Describe your problem in the chat to begin.")
+        st.subheader(t("Problem structure", LANG))
+        st.caption(
+            "Beschreibe dein Problem im Chat um zu beginnen."
+            if LANG == "de"
+            else "Describe your problem in the chat to begin."
+        )
 
     elif phase in ("definer", "transformer") and session.problem is not None:
-        st.subheader("Problem structure")
+        st.subheader(t("Problem structure", LANG))
         render_problem_panel(session.problem)
 
         if session.metaphor_candidates:
             st.divider()
-            st.subheader("Metaphor worlds")
+            st.subheader("Metaphern-Welten" if LANG == "de" else "Metaphor worlds")
             chosen = session.chosen_metaphor
             for i, m in enumerate(session.metaphor_candidates):
                 render_metaphor_card(m, i, chosen is not None and chosen.domain == m.domain)
@@ -745,9 +1003,13 @@ with structure_col:
     elif phase == "explorer":
         chosen = session.chosen_metaphor
         if chosen:
-            st.subheader(f"World: {chosen.domain.replace('_', ' ').title()}")
+            world_label = "Welt" if LANG == "de" else "World"
+            st.subheader(f"{world_label}: {chosen.domain.replace('_', ' ').title()}")
             st.caption(chosen.domain_intro)
-            with st.expander("Mapping table", expanded=False):
+            with st.expander(
+                "Mapping-Tabelle" if LANG == "de" else "Mapping table",
+                expanded=False,
+            ):
                 for mp in chosen.mappings:
                     st.markdown(
                         f"- **{mp.original}** → *{mp.metaphor}* "
@@ -757,21 +1019,30 @@ with structure_col:
                         st.caption(f"  ⚠️ {mp.leak}")
 
         st.divider()
-        st.subheader(f"Move log ({len(session.moves)})")
+        log_label = "Zug-Verlauf" if LANG == "de" else "Move log"
+        st.subheader(f"{log_label} ({len(session.moves)})")
         if not session.moves:
-            st.caption("No moves yet — make a move in the chat.")
+            st.caption(
+                "Noch keine Züge — generiere einen über die Buttons links."
+                if LANG == "de"
+                else "No moves yet — generate one with the buttons on the left."
+            )
         for i, move in enumerate(session.moves, 1):
             render_move(move, i)
 
     elif phase == "translator":
-        st.subheader("Solutions")
+        st.subheader("Lösungen" if LANG == "de" else "Solutions")
         if not session.solutions:
-            st.caption("Run the Translator to see solutions here.")
+            st.caption(
+                "Klicke 'Translator starten' um Lösungen zu sehen."
+                if LANG == "de"
+                else "Run the Translator to see solutions here."
+            )
         else:
             for i, sol in enumerate(session.solutions, 1):
                 render_solution(sol, i)
 
         st.divider()
-        st.subheader("Move log")
+        st.subheader("Zug-Verlauf" if LANG == "de" else "Move log")
         for i, move in enumerate(session.moves, 1):
             render_move(move, i)
