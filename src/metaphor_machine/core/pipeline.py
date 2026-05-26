@@ -107,6 +107,8 @@ class Pipeline:
             or os.getenv("METAPHOR_DEFAULT_MODEL", "anthropic/claude-sonnet-4-6")
         )
         self.language: Language = resolve_language(language)
+        # Surfaced to UI when a transformer parallel run failed silently.
+        self.last_transformer_errors: list[str] = []
         self._definer: DefinerAgent | None = None
         self._explorer: ExplorerAgent | None = None
         self._translator: TranslatorAgent | None = None
@@ -209,6 +211,10 @@ class Pipeline:
                     results.append(future.result())
                 except Exception as exc:
                     errors.append(f"{futures[future].name}: {exc}")
+
+        # Stash partial errors so the UI can warn the user about silent fails
+        # (e.g. you asked for 3 metaphors but only got 2 because one failed).
+        self.last_transformer_errors = errors
 
         if not results:
             raise RuntimeError(
