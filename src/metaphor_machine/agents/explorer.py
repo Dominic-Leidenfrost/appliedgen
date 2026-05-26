@@ -68,11 +68,16 @@ delay the guild notice — bribing him will cost the entire emergency repair fun
 class ExplorerAgent(Agent):
     MAX_REGEN = 2  # attempts after first failure
 
-    def __init__(self, config: LLMConfig | None = None) -> None:
+    def __init__(
+        self,
+        config: LLMConfig | None = None,
+        language: str = "en",
+    ) -> None:
         super().__init__(
             name="explorer",
             system_prompt=SYSTEM_PROMPT,
             config=config or LLMConfig(temperature=0.7),
+            language=language,  # type: ignore[arg-type]
         )
 
     def run(
@@ -96,6 +101,8 @@ class ExplorerAgent(Agent):
                 prior moves. Used by the UI's "Try different angle" button.
         """
         messages = self._build_messages(metaphor, history, directive, force_different)
+        # Inject language clause as the last system message so it takes priority.
+        messages.insert(2, {"role": "system", "content": self.language_clause()})
 
         move: Move | None = None
         last_complaints: list[str] = []
@@ -121,7 +128,7 @@ class ExplorerAgent(Agent):
                 schema=Move,
                 agent_name=self.name,
             )
-            last_complaints = self._validate(move, metaphor)
+            last_complaints = self._validate(move, metaphor, language=self.language)
             if not last_complaints:
                 return move
 
@@ -197,7 +204,11 @@ class ExplorerAgent(Agent):
         ]
 
     @staticmethod
-    def _validate(move: Move, metaphor: MetaphorSpec) -> list[str]:
+    def _validate(
+        move: Move,
+        metaphor: MetaphorSpec,
+        language: str | None = None,
+    ) -> list[str]:
         """Return a list of complaint strings (empty = valid)."""
         complaints: list[str] = []
 
@@ -208,11 +219,12 @@ class ExplorerAgent(Agent):
                 "resists this action."
             )
 
-        # Check forbidden words across all text fields
+        # Check forbidden words across all text fields (language-aware)
         full_text = " ".join(
             filter(None, [move.actor, move.action, move.consequence, move.obstacle])
         )
-        hits = find_forbidden(full_text)
+        lang: str | None = language if language in ("en", "de") else None
+        hits = find_forbidden(full_text, language=lang)  # type: ignore[arg-type]
         if hits:
             quoted = ", ".join(f'"{w}"' for w in hits)
             complaints.append(f"forbidden phrase(s) found: {quoted} — rephrase without them.")

@@ -28,7 +28,53 @@ from metaphor_machine.core.pipeline import Pipeline  # noqa: E402
 from metaphor_machine.core.schemas import MetaphorSpec, Move, ProblemSpec, Solution  # noqa: E402
 from metaphor_machine.llm.mock import mock_enabled  # noqa: E402
 from metaphor_machine.llm.providers import PROVIDERS  # noqa: E402
+from metaphor_machine.prompts.language import resolve_language  # noqa: E402
 from metaphor_machine.storage.markdown_store import MarkdownStore  # noqa: E402
+
+
+# ---------------------------------------------------------------------------
+# i18n: UI strings (Python-side, separate from agent output language)
+# ---------------------------------------------------------------------------
+# Streamlit labels are kept short and in just two languages — we don't
+# attempt a full i18n library. Keys are the English label.
+
+I18N: dict[str, dict[str, str]] = {
+    "en": {},  # English is the canonical, no translation needed
+    "de": {
+        # Sidebar
+        "Provider": "Anbieter",
+        "Model": "Modell",
+        "🔍 Filter": "🔍 Filter",
+        "Per-agent temperatures": "Temperatur pro Agent",
+        "💾 Save session": "💾 Sitzung speichern",
+        "🔄 Reset session": "🔄 Sitzung zurücksetzen",
+        "Conversation": "Konversation",
+        "Problem structure": "Problemstruktur",
+        # Phase progress
+        "1. Definer": "1. Definer",
+        "2. Transformer": "2. Transformer",
+        "3. Explorer": "3. Explorer",
+        "4. Translator": "4. Translator",
+        # Header
+        "Describe your problem…": "Beschreibe dein Problem…",
+        # Explorer
+        "🎲 Generate first move": "🎲 Ersten Zug generieren",
+        "🎲 Continue exploring": "🎲 Weiter erkunden",
+        "🔄 Try different angle": "🔄 Anderen Ansatz versuchen",
+        "↩️ Undo last": "↩️ Letzten Zug rückgängig",
+        "Optional steering for the next move": "Optionale Lenkung für den nächsten Zug",
+        "🔁 Translate moves to solutions →": "🔁 Züge in Lösungen übersetzen →",
+        # Status
+        "Connected": "Verbunden",
+        "Active model": "Aktives Modell",
+        "Active language": "Aktive Sprache",
+    },
+}
+
+
+def t(key: str, lang: str = "en") -> str:
+    """Translate a UI string. Falls back to the key (English) if missing."""
+    return I18N.get(lang, {}).get(key, key)
 
 load_dotenv()
 
@@ -91,6 +137,42 @@ if "baseline_text" not in st.session_state:
     st.session_state.baseline_text = None
 if "saved_path" not in st.session_state:
     st.session_state.saved_path = None
+# Language toggle, persisted across reloads via Pipeline.
+if "language" not in st.session_state:
+    st.session_state.language = st.session_state.pipeline.language
+
+
+# ---------------------------------------------------------------------------
+# Top header row: title (left) + language toggle (right)
+# ---------------------------------------------------------------------------
+
+head_left, head_lang = st.columns([6, 1])
+with head_lang:
+    lang_choice = st.segmented_control(
+        label="Language",
+        options=["EN", "DE"],
+        default=st.session_state.language.upper(),
+        label_visibility="collapsed",
+        key="lang_seg_ctrl",
+    ) if hasattr(st, "segmented_control") else st.radio(
+        label="Language",
+        options=["EN", "DE"],
+        index=0 if st.session_state.language == "en" else 1,
+        horizontal=True,
+        label_visibility="collapsed",
+        key="lang_seg_ctrl",
+    )
+    new_lang = (lang_choice or "EN").lower()
+    if new_lang != st.session_state.language:
+        st.session_state.language = new_lang
+        st.session_state.pipeline.set_language(new_lang)  # type: ignore[arg-type]
+        st.toast(
+            f"Switched to {'Deutsch' if new_lang == 'de' else 'English'}",
+            icon="🌐",
+        )
+        st.rerun()
+
+LANG = st.session_state.language  # convenience alias for translators below
 
 
 # ---------------------------------------------------------------------------
@@ -268,7 +350,7 @@ with st.sidebar:
 
     # Save session
     if session.problem is not None:
-        if st.button("💾 Save session", use_container_width=True):
+        if st.button(t("💾 Save session", LANG), use_container_width=True):
             store = MarkdownStore(ROOT / "data" / "runs")
             slug = (session.problem.summary[:30].replace(" ", "_").lower() or "session")
             saved = store.save(session, slug=slug)
@@ -277,7 +359,7 @@ with st.sidebar:
     if st.session_state.saved_path:
         st.caption(f"Last saved: `{Path(st.session_state.saved_path).name}`")
 
-    if st.button("🔄 Reset session", use_container_width=True):
+    if st.button(t("🔄 Reset session", LANG), use_container_width=True):
         st.session_state.pipeline = Pipeline()
         st.session_state.messages = []
         st.session_state.phase = "definer"
@@ -434,7 +516,7 @@ with chat_col:
 
     # --- Phase: Definer ---
     if phase == "definer":
-        prompt = st.chat_input("Describe your problem…")
+        prompt = st.chat_input(t("Describe your problem…", LANG))
         if prompt:
             _push_msg("user", prompt)
             with st.chat_message("user"):
@@ -531,14 +613,17 @@ with chat_col:
         steering = st.session_state.get("steering_input", "")
 
         with col_gen:
-            btn_label = "🎲 Generate first move" if n_moves == 0 else "🎲 Continue exploring"
+            btn_label = (
+                t("🎲 Generate first move", LANG) if n_moves == 0
+                else t("🎲 Continue exploring", LANG)
+            )
             if st.button(btn_label, type="primary", use_container_width=True):
                 _run_explorer(directive=steering or None, force_different=False)
 
         with col_diff:
             disabled = n_moves == 0
             if st.button(
-                "🔄 Try different angle",
+                t("🔄 Try different angle", LANG),
                 use_container_width=True,
                 disabled=disabled,
                 help="Force the next move to use a strategy structurally unlike all prior moves.",
@@ -548,7 +633,7 @@ with chat_col:
         with col_undo:
             disabled = n_moves == 0
             if st.button(
-                "↩️ Undo last",
+                t("↩️ Undo last", LANG),
                 use_container_width=True,
                 disabled=disabled,
                 help="Remove the most recent move (e.g. if it broke the metaphor or felt off).",
@@ -563,7 +648,7 @@ with chat_col:
 
         # --- Optional steering text ------------------------------------
         st.text_area(
-            "Optional steering for the next move",
+            t("Optional steering for the next move", LANG),
             value=steering,
             key="steering_input",
             height=68,
@@ -583,7 +668,7 @@ with chat_col:
 
         if pipeline.session.moves:
             if st.button(
-                "🔁 Translate moves to solutions →",
+                t("🔁 Translate moves to solutions →", LANG),
                 type="secondary" if n_moves < 3 else "primary",
                 use_container_width=True,
                 help="End the exploration phase. Each move becomes one candidate solution.",

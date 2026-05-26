@@ -90,11 +90,13 @@ class TransformerAgent(Agent):
         self,
         style_hint: str | DomainSeed | None = None,
         config: LLMConfig | None = None,
+        language: str = "en",
     ) -> None:
         super().__init__(
             name="transformer",
             system_prompt=SYSTEM_PROMPT,
             config=config or LLMConfig(temperature=0.9),
+            language=language,  # type: ignore[arg-type]
         )
         # Accept a raw string OR a DomainSeed dataclass
         if isinstance(style_hint, str):
@@ -116,6 +118,7 @@ class TransformerAgent(Agent):
         messages = [
             {"role": "system", "content": self.system_prompt},
             {"role": "system", "content": FORMAT_EXAMPLE},
+            {"role": "system", "content": self.language_clause()},
             {
                 "role": "user",
                 "content": (

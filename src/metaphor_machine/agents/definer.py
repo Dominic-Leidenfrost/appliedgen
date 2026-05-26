@@ -71,17 +71,23 @@ Example output:
 
 
 class DefinerAgent(Agent):
-    def __init__(self, config: LLMConfig | None = None) -> None:
+    def __init__(
+        self,
+        config: LLMConfig | None = None,
+        language: str = "en",
+    ) -> None:
         super().__init__(
             name="definer",
             system_prompt=SYSTEM_PROMPT,
             config=config or LLMConfig(temperature=0.2),
+            language=language,  # type: ignore[arg-type]
         )
 
     def run(self, user_text: str) -> ProblemSpec:
         messages = [
             {"role": "system", "content": self.system_prompt},
             {"role": "system", "content": FORMAT_EXAMPLE},
+            {"role": "system", "content": self.language_clause()},
             {"role": "user", "content": user_text},
         ]
         spec = self.client().structured(
