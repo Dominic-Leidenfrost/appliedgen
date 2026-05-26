@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from ..agents.definer import DefinerAgent
 from ..agents.explorer import ExplorerAgent
@@ -26,6 +27,45 @@ _AGENT_TEMP = {
     "explorer": 0.7,
     "translator": 0.3,
 }
+
+
+# ---------------------------------------------------------------------------
+# Persisted model choice
+# ---------------------------------------------------------------------------
+#
+# Streamlit recreates the Pipeline on every page reload, which would reset
+# the user's model choice to the env default every time. We persist the most
+# recent choice to a tiny file under data/cache/ so reloads pick it back up.
+#
+# This is intentionally NOT in storage/markdown_store.py — that module handles
+# session output (problem.md, solutions.md, ...). The model-choice file is
+# *machine config*, not session content. Keeping them separate so wiping
+# data/runs/ never touches the saved model preference.
+
+_MODEL_CACHE_FILE = Path(
+    os.getenv("METAPHOR_CACHE_DIR", "./data/cache")
+) / "active_model.txt"
+
+
+def _load_persisted_model() -> str | None:
+    """Return the last set_model() value, or None if missing/unreadable."""
+    try:
+        text = _MODEL_CACHE_FILE.read_text().strip()
+        # Sanity check: must look like a LiteLLM model string ("provider/model")
+        if text and "/" in text and len(text) < 200:
+            return text
+    except (OSError, FileNotFoundError):
+        pass
+    return None
+
+
+def _persist_model(model: str) -> None:
+    """Best-effort write — silently ignore disk/perm errors."""
+    try:
+        _MODEL_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        _MODEL_CACHE_FILE.write_text(model)
+    except OSError:
+        pass
 
 
 @dataclass
@@ -55,9 +95,14 @@ class Pipeline:
         model: str | None = None,
     ) -> None:
         self.session = session or Session()
-        # Precedence: explicit arg > env > hard-coded fallback.
-        self.model = model or os.getenv(
-            "METAPHOR_DEFAULT_MODEL", "anthropic/claude-sonnet-4-6"
+        # Precedence: explicit arg > persisted choice > env > hard-coded fallback.
+        # The persisted choice survives page reloads / process restarts so the
+        # user doesn't have to re-pick a model every time the Streamlit app
+        # reruns.
+        self.model = (
+            model
+            or _load_persisted_model()
+            or os.getenv("METAPHOR_DEFAULT_MODEL", "anthropic/claude-sonnet-4-6")
         )
         self._definer: DefinerAgent | None = None
         self._explorer: ExplorerAgent | None = None
@@ -68,7 +113,8 @@ class Pipeline:
 
         Drops cached agent instances so the next call rebuilds them with the
         new model. Does NOT touch session state — problem, metaphors, moves
-        and solutions already collected are preserved.
+        and solutions already collected are preserved. Persists the choice
+        to disk so it survives page reloads / process restarts.
         """
         if model == self.model:
             return
@@ -76,6 +122,7 @@ class Pipeline:
         self._definer = None
         self._explorer = None
         self._translator = None
+        _persist_model(model)
 
     def _config_for(self, agent_name: str) -> LLMConfig:
         return LLMConfig(model=self.model, temperature=_AGENT_TEMP[agent_name])
