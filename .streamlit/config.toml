@@ -1,5 +1,8 @@
 [server]
 headless = true
+# Auto-rerun when any watched .py file is saved. Falls back to a manual
+# "Rerun" banner if false. See README "Hot reload" for what is/isn't watched.
+runOnSave = true
 
 [browser]
 gatherUsageStats = false
