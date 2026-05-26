@@ -216,3 +216,19 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- OS files ---
+.DS_Store
+Thumbs.db
+
+# --- Lecture material (kept locally, not part of the project) ---
+2026.04.30 - Efficient LLM Inference.pdf
+efficient_llm_inference.csv
+efficient_llm_inference_anki.csv
+
+# --- Local runtime data (sessions, caches) — but keep the .gitkeep markers ---
+data/runs/*
+data/cache/*
+!data/runs/.gitkeep
+!data/cache/.gitkeep
+logs/
