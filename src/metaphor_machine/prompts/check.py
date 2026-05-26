@@ -1,38 +1,42 @@
 """Forbidden-word enforcement for agent outputs.
 
-See PLAN.md §4.1. Load from forbidden_words.yaml so the list is configurable
-without code changes. Used by ExplorerAgent (Sprint 3) and Transformer validation.
+See PLAN.md §4.1. Used by ExplorerAgent (Sprint 3) and Transformer validation.
+
+The list is language-aware: when language='de', we check the German
+weasel-word list instead of the English one. Backward-compatible callers
+that don't pass a language fall through to the union of both lists (catches
+either language regardless).
 """
 
 from __future__ import annotations
 
 import re
-from pathlib import Path
+from typing import Literal
 
-import yaml
+from .language import FORBIDDEN_WORDS
 
-_YAML_PATH = Path(__file__).parent / "forbidden_words.yaml"
-_cached_words: list[str] | None = None
-
-
-def _load() -> list[str]:
-    global _cached_words
-    if _cached_words is None:
-        with _YAML_PATH.open() as f:
-            data = yaml.safe_load(f)
-        _cached_words = [w.lower() for w in data.get("forbidden", [])]
-    return _cached_words
+Language = Literal["en", "de"]
 
 
-def find_forbidden(text: str) -> list[str]:
+def _words_for(language: Language | None) -> list[str]:
+    if language in ("en", "de"):
+        return [w.lower() for w in FORBIDDEN_WORDS[language]]
+    # No language pinned → check both lists (defensive)
+    return [w.lower() for words in FORBIDDEN_WORDS.values() for w in words]
+
+
+def find_forbidden(text: str, language: Language | None = None) -> list[str]:
     """Return every forbidden phrase found (lowercased) in text."""
     haystack = text.lower()
-    return [w for w in _load() if re.search(r"\b" + re.escape(w) + r"\b", haystack)]
+    return [
+        w for w in _words_for(language)
+        if re.search(r"\b" + re.escape(w) + r"\b", haystack)
+    ]
 
 
-def assert_clean(text: str) -> None:
+def assert_clean(text: str, language: Language | None = None) -> None:
     """Raise ValueError listing all forbidden phrases if any are found."""
-    hits = find_forbidden(text)
+    hits = find_forbidden(text, language=language)
     if hits:
         quoted = ", ".join(f'"{w}"' for w in hits)
         raise ValueError(f"Output contains forbidden phrase(s): {quoted}")

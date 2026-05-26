@@ -17,6 +17,11 @@ from ..agents.transformer import TransformerAgent
 from ..agents.translator import TranslatorAgent
 from ..llm import LLMConfig
 from ..prompts.domains import DomainSeed, pick_diverse
+from ..prompts.language import (
+    Language,
+    persist_language,
+    resolve_language,
+)
 from .schemas import MetaphorSpec, Move, ProblemSpec, Solution
 
 
@@ -93,20 +98,33 @@ class Pipeline:
         self,
         session: Session | None = None,
         model: str | None = None,
+        language: Language | None = None,
     ) -> None:
         self.session = session or Session()
-        # Precedence: explicit arg > persisted choice > env > hard-coded fallback.
-        # The persisted choice survives page reloads / process restarts so the
-        # user doesn't have to re-pick a model every time the Streamlit app
-        # reruns.
         self.model = (
             model
             or _load_persisted_model()
             or os.getenv("METAPHOR_DEFAULT_MODEL", "anthropic/claude-sonnet-4-6")
         )
+        self.language: Language = resolve_language(language)
         self._definer: DefinerAgent | None = None
         self._explorer: ExplorerAgent | None = None
         self._translator: TranslatorAgent | None = None
+
+    def set_language(self, language: Language) -> None:
+        """Switch output language for future agent calls.
+
+        Drops cached agents so they're rebuilt with the new language clause.
+        Session state (already-generated content) is preserved — only NEW
+        agent output will be in the new language. Persists across reloads.
+        """
+        if language == self.language:
+            return
+        self.language = language
+        self._definer = None
+        self._explorer = None
+        self._translator = None
+        persist_language(language)
 
     def set_model(self, model: str) -> None:
         """Switch the model used for future agent calls.
@@ -130,19 +148,25 @@ class Pipeline:
     @property
     def definer(self) -> DefinerAgent:
         if self._definer is None:
-            self._definer = DefinerAgent(config=self._config_for("definer"))
+            self._definer = DefinerAgent(
+                config=self._config_for("definer"), language=self.language
+            )
         return self._definer
 
     @property
     def explorer(self) -> ExplorerAgent:
         if self._explorer is None:
-            self._explorer = ExplorerAgent(config=self._config_for("explorer"))
+            self._explorer = ExplorerAgent(
+                config=self._config_for("explorer"), language=self.language
+            )
         return self._explorer
 
     @property
     def translator(self) -> TranslatorAgent:
         if self._translator is None:
-            self._translator = TranslatorAgent(config=self._config_for("translator"))
+            self._translator = TranslatorAgent(
+                config=self._config_for("translator"), language=self.language
+            )
         return self._translator
 
     # --- step 1: Definer ---
@@ -165,9 +189,14 @@ class Pipeline:
         problem = self.session.problem
 
         transformer_config = self._config_for("transformer")
+        transformer_language = self.language
 
         def _run_one(seed: DomainSeed) -> MetaphorSpec:
-            agent = TransformerAgent(style_hint=seed, config=transformer_config)
+            agent = TransformerAgent(
+                style_hint=seed,
+                config=transformer_config,
+                language=transformer_language,
+            )
             return agent.run(problem)
 
         results: list[MetaphorSpec] = []

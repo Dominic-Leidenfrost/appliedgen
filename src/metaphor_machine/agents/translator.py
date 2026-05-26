@@ -75,11 +75,16 @@ class _SolutionList(BaseModel):
 
 
 class TranslatorAgent(Agent):
-    def __init__(self, config: LLMConfig | None = None) -> None:
+    def __init__(
+        self,
+        config: LLMConfig | None = None,
+        language: str = "en",
+    ) -> None:
         super().__init__(
             name="translator",
             system_prompt=SYSTEM_PROMPT,
             config=config or LLMConfig(temperature=0.3),
+            language=language,  # type: ignore[arg-type]
         )
 
     def run(
@@ -106,6 +111,7 @@ class TranslatorAgent(Agent):
         messages = [
             {"role": "system", "content": self.system_prompt},
             {"role": "system", "content": FORMAT_EXAMPLE},
+            {"role": "system", "content": self.language_clause()},
             {
                 "role": "user",
                 "content": (
@@ -130,9 +136,13 @@ class TranslatorAgent(Agent):
         """Generate a direct LLM answer without metaphor, for comparison.
 
         Returns raw text (not structured) — displayed as-is in the UI.
+        Uses the same language as the rest of the pipeline.
         """
         prompt = BASELINE_PROMPT.format(problem_text=problem.raw_user_text)
         return self.client().chat(
-            [{"role": "user", "content": prompt}],
+            [
+                {"role": "system", "content": self.language_clause()},
+                {"role": "user", "content": prompt},
+            ],
             temperature=0.6,
         )
