@@ -194,6 +194,61 @@ I18N: dict[str, dict[str, str]] = {
             "**🎲 Ersten Zug generieren** — der Explorer schlägt Züge "
             "vor und du kuratierst (lenken, neu machen, akzeptieren)."
         ),
+        # --- Sidebar: provider/model status ---
+        "No provider has a key set. Add a key to `.env` and restart, or run with `METAPHOR_MOCK=1`.": (
+            "Kein Anbieter hat einen Key hinterlegt. Trage einen Key in "
+            "`.env` ein und starte neu, oder starte mit `METAPHOR_MOCK=1`."
+        ),
+        "Fetching Gemini models…": "Lade Gemini-Modelle…",
+        "Could not fetch Gemini model list (bad key or offline?). Falling back to curated list.": (
+            "Gemini-Modellliste nicht abrufbar (Key falsch oder offline?). "
+            "Fallback auf kuratierte Liste."
+        ),
+        "Active": "Aktiv",
+        "no key for `{env}`": "kein Key für `{env}`",
+        "no key for this provider": "kein Key für diesen Anbieter",
+        "Switched to {model}": "Modell gewechselt: {model}",
+        "Switched to {lang_name}": "Sprache: {lang_name}",
+        # --- Import session ---
+        "Import session": "Sitzung importieren",
+        "Saved sessions": "Gespeicherte Sitzungen",
+        "Pick a previously saved session from data/runs/.": (
+            "Wähle eine vorher gespeicherte Sitzung aus data/runs/."
+        ),
+        "Load": "Laden",
+        "Upload session.json": "session.json hochladen",
+        "External session from another machine.": (
+            "Externe Sitzung von einer anderen Maschine."
+        ),
+        "Load uploaded session": "Hochgeladene Sitzung laden",
+        "No saved sessions in data/runs/ yet.": (
+            "Noch keine gespeicherten Sitzungen in data/runs/."
+        ),
+        "Loaded session ({source}).": "Sitzung geladen ({source}).",
+        "Error": "Fehler",
+        "Error details": "Fehlerdetails",
+        # --- Structure / right panel ---
+        "Describe your problem in the chat to begin.": (
+            "Beschreibe dein Problem im Chat um zu beginnen."
+        ),
+        "Metaphor worlds": "Metaphern-Welten",
+        "World": "Welt",
+        "Mapping table": "Mapping-Tabelle",
+        "Move log": "Zug-Verlauf",
+        "No moves yet — generate one with the buttons on the left.": (
+            "Noch keine Züge — generiere einen über die Buttons links."
+        ),
+        "Solutions": "Lösungen",
+        "Run the Translator to see solutions here.": (
+            "Klicke 'Translator starten' um Lösungen zu sehen."
+        ),
+        "Will be sent with the next click below:": (
+            "Wird mit dem nächsten Klick mitgesendet:"
+        ),
+        # --- Misc ---
+        "confidence": "Konfidenz",
+        "Metaphor": "Metapher",
+        "e.g. {example}": "z.B. {example}",
     },
 }
 
@@ -334,8 +389,9 @@ with head_lang:
     if new_lang != st.session_state.language:
         st.session_state.language = new_lang
         st.session_state.pipeline.set_language(new_lang)  # type: ignore[arg-type]
+        lang_name = "Deutsch" if new_lang == "de" else "English"
         st.toast(
-            f"Switched to {'Deutsch' if new_lang == 'de' else 'English'}",
+            t("Switched to {lang_name}", new_lang).format(lang_name=lang_name),
             icon="🌐",
         )
         st.rerun()
@@ -387,8 +443,11 @@ with st.sidebar:
         st.info(t("**Active model:** _mock fixtures_ (no LLM calls)", LANG))
     elif not available_provs:
         st.warning(
-            "No provider has a key set. Add a key to `.env` and restart, "
-            "or run with `METAPHOR_MOCK=1`."
+            t(
+                "No provider has a key set. Add a key to `.env` and restart, "
+                "or run with `METAPHOR_MOCK=1`.",
+                LANG,
+            )
         )
     else:
         # --- Step 1: Provider --------------------------------------------
@@ -414,13 +473,10 @@ with st.sidebar:
         # rate limited, etc.).
         live_providers = {"openrouter", "gemini"}
         if provider.key in live_providers:
-            spinner_msg = (
-                t("Fetching OpenRouter catalog…", LANG)
-                if provider.key == "openrouter"
-                else (
-                    "Lade Gemini-Modelle…" if LANG == "de" else "Fetching Gemini models…"
-                )
-            )
+            if provider.key == "openrouter":
+                spinner_msg = t("Fetching OpenRouter catalog…", LANG)
+            else:
+                spinner_msg = t("Fetching Gemini models…", LANG)
             with st.spinner(spinner_msg):
                 if provider.key == "openrouter":
                     catalog = _fetch_openrouter_models()
@@ -428,20 +484,18 @@ with st.sidebar:
                     catalog = _fetch_gemini_models(os.getenv("GEMINI_API_KEY", ""))
 
             if not catalog:
-                fallback_msg = (
-                    t(
-                        "Could not fetch OpenRouter catalog (offline?). Falling back to curated list.",
+                if provider.key == "openrouter":
+                    fallback_msg = t(
+                        "Could not fetch OpenRouter catalog (offline?). "
+                        "Falling back to curated list.",
                         LANG,
                     )
-                    if provider.key == "openrouter"
-                    else (
-                        "Gemini-Modellliste nicht abrufbar (Key falsch oder offline?). "
-                        "Fallback auf kuratierte Liste."
-                        if LANG == "de"
-                        else "Could not fetch Gemini model list (bad key or offline?). "
-                        "Falling back to curated list."
+                else:
+                    fallback_msg = t(
+                        "Could not fetch Gemini model list (bad key or offline?). "
+                        "Falling back to curated list.",
+                        LANG,
                     )
-                )
                 st.warning(fallback_msg)
                 catalog = [(m.display, m.model_id) for m in provider.models]
 
@@ -496,7 +550,7 @@ with st.sidebar:
             custom = st.text_input(
                 t("LiteLLM model string", LANG),
                 value="",
-                placeholder=f"z.B. {provider.default_model()}" if LANG == "de" else f"e.g. {provider.default_model()}",
+                placeholder=t("e.g. {example}", LANG).format(example=provider.default_model()),
                 key="custom_model",
                 help=t(
                     "Leave blank to use the dropdown choice above. "
@@ -510,7 +564,10 @@ with st.sidebar:
         # --- Apply choice ------------------------------------------------
         if chosen_id and chosen_id != st.session_state.pipeline.model:
             st.session_state.pipeline.set_model(chosen_id)
-            st.toast(f"Switched to {chosen_id}", icon="🔄")
+            st.toast(
+                t("Switched to {model}", LANG).format(model=chosen_id),
+                icon="🔄",
+            )
 
         # --- Status row --------------------------------------------------
         active = st.session_state.pipeline.model
@@ -522,10 +579,14 @@ with st.sidebar:
             "openrouter": "OPENROUTER_API_KEY",
         }.get(active_prefix, "")
         key_ok = bool(provider_env) and bool(os.getenv(provider_env))
-        st.caption(
-            f"{'🟢' if key_ok else '🔴'} Active: `{active}`"
-            + ("" if key_ok else f" — no key for `{provider_env or 'this provider'}`")
-        )
+        active_label = t("Active", LANG)
+        if key_ok:
+            missing_part = ""
+        elif provider_env:
+            missing_part = " — " + t("no key for `{env}`", LANG).format(env=provider_env)
+        else:
+            missing_part = " — " + t("no key for this provider", LANG)
+        st.caption(f"{'🟢' if key_ok else '🔴'} {active_label}: `{active}`{missing_part}")
 
     with st.expander(t("Per-agent temperatures", LANG)):
         st.slider(t("Definer", LANG), 0.0, 1.5, 0.2, 0.1, key="temp_definer")
@@ -595,33 +656,25 @@ with st.sidebar:
         st.session_state.phase = _phase_for(session)
         st.session_state.baseline_text = None
         st.session_state.saved_path = None
-        _msg = (
-            f"Sitzung geladen ({source_label})."
-            if LANG == "de"
-            else f"Loaded session ({source_label})."
+        st.toast(
+            t("Loaded session ({source}).", LANG).format(source=source_label),
+            icon="📂",
         )
-        st.toast(_msg, icon="📂")
 
-    with st.expander(
-        "📂 " + ("Sitzung importieren" if LANG == "de" else "Import session")
-    ):
+    with st.expander("📂 " + t("Import session", LANG)):
         store_for_list = MarkdownStore(ROOT / "data" / "runs")
         saved_folders = store_for_list.list_sessions()
         if saved_folders:
             options = ["—"] + [f.name for f in saved_folders]
             choice = st.selectbox(
-                "Gespeicherte Sitzungen" if LANG == "de" else "Saved sessions",
+                t("Saved sessions", LANG),
                 options=options,
                 index=0,
                 key="import_pick",
-                help=(
-                    "Wähle eine vorher gespeicherte Sitzung aus data/runs/."
-                    if LANG == "de"
-                    else "Pick a previously saved session from data/runs/."
-                ),
+                help=t("Pick a previously saved session from data/runs/.", LANG),
             )
             if choice != "—" and st.button(
-                "📥 " + ("Laden" if LANG == "de" else "Load"),
+                "📥 " + t("Load", LANG),
                 use_container_width=True,
                 key="btn_load_local",
             ):
@@ -631,26 +684,18 @@ with st.sidebar:
                     _apply_loaded_session(loaded, choice)
                     st.rerun()
                 except Exception as e:
-                    st.error(f"⚠️ {type(e).__name__}: {e}")
+                    st.error(f"⚠️ {t('Error', LANG)}: {type(e).__name__}: {e}")
         else:
-            st.caption(
-                "Noch keine gespeicherten Sitzungen in data/runs/."
-                if LANG == "de"
-                else "No saved sessions in data/runs/ yet."
-            )
+            st.caption(t("No saved sessions in data/runs/ yet.", LANG))
 
         uploaded = st.file_uploader(
-            "session.json hochladen" if LANG == "de" else "Upload session.json",
+            t("Upload session.json", LANG),
             type=["json"],
             key="import_upload",
-            help=(
-                "Externe Sitzung von einer anderen Maschine."
-                if LANG == "de"
-                else "External session from another machine."
-            ),
+            help=t("External session from another machine.", LANG),
         )
         if uploaded is not None and st.button(
-            "📥 " + ("Hochgeladene Sitzung laden" if LANG == "de" else "Load uploaded session"),
+            "📥 " + t("Load uploaded session", LANG),
             use_container_width=True,
             key="btn_load_upload",
         ):
@@ -659,7 +704,7 @@ with st.sidebar:
                 _apply_loaded_session(loaded, uploaded.name)
                 st.rerun()
             except Exception as e:
-                st.error(f"⚠️ {type(e).__name__}: {e}")
+                st.error(f"⚠️ {t('Error', LANG)}: {type(e).__name__}: {e}")
 
 
 # ---------------------------------------------------------------------------
@@ -799,9 +844,9 @@ def render_solution(sol: Solution, idx: int) -> None:
     conf_color = "🟢" if sol.confidence >= 0.7 else ("🟡" if sol.confidence >= 0.5 else "🔴")
     with st.container(border=True):
         sol_label = t("**Solution {idx}**", LANG).format(idx=idx)
-        conf_label = "Konfidenz" if LANG == "de" else "confidence"
+        conf_label = t("confidence", LANG)
         st.markdown(f"{sol_label} {conf_color} {conf_label} `{sol.confidence:.0%}`")
-        st.caption(f"_{'Metapher' if LANG == 'de' else 'Metaphor'}: {sol.metaphor_idea}_")
+        st.caption(f"_{t('Metaphor', LANG)}: {sol.metaphor_idea}_")
         st.markdown(f"**→ {sol.original_domain_translation}**")
         if sol.caveats:
             with st.expander(t("Caveats", LANG)):
@@ -906,9 +951,7 @@ with chat_col:
                     ).format(got=n_got, want=3, fail_count=fail_count)
                 )
                 # Show first error for diagnostics
-                with st.expander(
-                    "🔍 " + ("Fehlerdetails" if LANG == "de" else "Error details")
-                ):
+                with st.expander("🔍 " + t("Error details", LANG)):
                     for err_line in errors:
                         st.code(err_line)
                 if st.button(t("Retry failed runs", LANG), use_container_width=True):
@@ -993,10 +1036,7 @@ with chat_col:
         # Visual cue: arrow pointing from text → buttons, so it's obvious
         # the text input feeds into the buttons.
         if steering.strip():
-            st.caption(
-                ("⬇️ " + ("Wird mit dem nächsten Klick mitgesendet:" if LANG == "de"
-                          else "Will be sent with the next click below:"))
-            )
+            st.caption("⬇️ " + t("Will be sent with the next click below:", LANG))
 
         # --- Control row: Generate / Try different / Undo --------------
         col_gen, col_diff, col_undo = st.columns([3, 3, 2])
@@ -1139,11 +1179,7 @@ with structure_col:
 
     if phase == "definer" and session.problem is None:
         st.subheader(t("Problem structure", LANG))
-        st.caption(
-            "Beschreibe dein Problem im Chat um zu beginnen."
-            if LANG == "de"
-            else "Describe your problem in the chat to begin."
-        )
+        st.caption(t("Describe your problem in the chat to begin.", LANG))
 
     elif phase in ("definer", "transformer") and session.problem is not None:
         st.subheader(t("Problem structure", LANG))
@@ -1151,7 +1187,7 @@ with structure_col:
 
         if session.metaphor_candidates:
             st.divider()
-            st.subheader("Metaphern-Welten" if LANG == "de" else "Metaphor worlds")
+            st.subheader(t("Metaphor worlds", LANG))
             chosen = session.chosen_metaphor
             for i, m in enumerate(session.metaphor_candidates):
                 render_metaphor_card(m, i, chosen is not None and chosen.domain == m.domain)
@@ -1159,13 +1195,11 @@ with structure_col:
     elif phase == "explorer":
         chosen = session.chosen_metaphor
         if chosen:
-            world_label = "Welt" if LANG == "de" else "World"
-            st.subheader(f"{world_label}: {chosen.domain.replace('_', ' ').title()}")
+            st.subheader(
+                f"{t('World', LANG)}: {chosen.domain.replace('_', ' ').title()}"
+            )
             st.caption(chosen.domain_intro)
-            with st.expander(
-                "Mapping-Tabelle" if LANG == "de" else "Mapping table",
-                expanded=False,
-            ):
+            with st.expander(t("Mapping table", LANG), expanded=False):
                 for mp in chosen.mappings:
                     st.markdown(
                         f"- **{mp.original}** → *{mp.metaphor}* "
@@ -1175,30 +1209,21 @@ with structure_col:
                         st.caption(f"  ⚠️ {mp.leak}")
 
         st.divider()
-        log_label = "Zug-Verlauf" if LANG == "de" else "Move log"
-        st.subheader(f"{log_label} ({len(session.moves)})")
+        st.subheader(f"{t('Move log', LANG)} ({len(session.moves)})")
         if not session.moves:
-            st.caption(
-                "Noch keine Züge — generiere einen über die Buttons links."
-                if LANG == "de"
-                else "No moves yet — generate one with the buttons on the left."
-            )
+            st.caption(t("No moves yet — generate one with the buttons on the left.", LANG))
         for i, move in enumerate(session.moves, 1):
             render_move(move, i)
 
     elif phase == "translator":
-        st.subheader("Lösungen" if LANG == "de" else "Solutions")
+        st.subheader(t("Solutions", LANG))
         if not session.solutions:
-            st.caption(
-                "Klicke 'Translator starten' um Lösungen zu sehen."
-                if LANG == "de"
-                else "Run the Translator to see solutions here."
-            )
+            st.caption(t("Run the Translator to see solutions here.", LANG))
         else:
             for i, sol in enumerate(session.solutions, 1):
                 render_solution(sol, i)
 
         st.divider()
-        st.subheader("Zug-Verlauf" if LANG == "de" else "Move log")
+        st.subheader(t("Move log", LANG))
         for i, move in enumerate(session.moves, 1):
             render_move(move, i)
