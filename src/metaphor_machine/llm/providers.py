@@ -7,8 +7,15 @@ whether a key is currently set.
 LiteLLM model-string conventions used here:
   Anthropic   → "anthropic/claude-sonnet-4-6"
   OpenAI      → "openai/gpt-4o"
-  Gemini      → "gemini/gemini-1.5-pro"
+  Gemini      → "gemini/gemini-2.5-flash"
   OpenRouter  → "openrouter/anthropic/claude-3.5-sonnet"
+
+Note: Google removed the entire Gemini 1.5 family in late 2025 — those
+model IDs now return HTTP 404 from generativelanguage.googleapis.com.
+The curated list below tracks the 2.5 family (and the "*-latest" aliases
+that auto-roll forward). The UI also pulls the live ListModels response
+on every Gemini selection, so this list is purely a fallback for when
+the live fetch fails.
 """
 
 from __future__ import annotations
@@ -69,10 +76,17 @@ PROVIDERS: list[Provider] = [
         key="gemini",
         display="Google Gemini",
         env_var="GEMINI_API_KEY",
+        # Verified against ListModels on 2026-05-27 — the 1.5 family is
+        # gone (HTTP 404), the 2.5 family is the current stable line.
+        # The "*-latest" aliases auto-roll forward, so they're useful as
+        # a stable default that won't go stale.
         models=[
-            ModelOption("Gemini 1.5 Pro", "gemini/gemini-1.5-pro"),
-            ModelOption("Gemini 1.5 Flash (fast/cheap)", "gemini/gemini-1.5-flash"),
+            ModelOption("Gemini 2.5 Flash (recommended)", "gemini/gemini-2.5-flash"),
+            ModelOption("Gemini 2.5 Pro (most capable)", "gemini/gemini-2.5-pro"),
+            ModelOption("Gemini 2.5 Flash-Lite (fast/cheap)", "gemini/gemini-2.5-flash-lite"),
             ModelOption("Gemini 2.0 Flash", "gemini/gemini-2.0-flash"),
+            ModelOption("Gemini Flash Latest (auto-rolling)", "gemini/gemini-flash-latest"),
+            ModelOption("Gemini Pro Latest (auto-rolling)", "gemini/gemini-pro-latest"),
         ],
         notes="Set GEMINI_API_KEY in .env — get one free at aistudio.google.com",
     ),
