@@ -7,6 +7,8 @@ state and decides what runs when. See PLAN.md §2 for the architecture diagram.
 from __future__ import annotations
 
 import os
+import time
+import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -16,6 +18,7 @@ from ..agents.explorer import ExplorerAgent
 from ..agents.transformer import TransformerAgent
 from ..agents.translator import TranslatorAgent
 from ..llm import LLMConfig
+from ..logging_config import get_logger
 from ..prompts.domains import DomainSeed, pick_diverse
 from ..prompts.language import (
     Language,
@@ -23,6 +26,8 @@ from ..prompts.language import (
     resolve_language,
 )
 from .schemas import MetaphorSpec, Move, ProblemSpec, Solution
+
+log = get_logger(__name__)
 
 
 # Per-agent default temperatures (PLAN.md §2 table).
@@ -174,7 +179,21 @@ class Pipeline:
     # --- step 1: Definer ---
     def run_definer(self, user_text: str) -> ProblemSpec:
         self.session.raw_input = user_text
-        spec = self.definer.run(user_text)
+        log.info(
+            "Definer.run start | model=%s lang=%s input_len=%d",
+            self.model, self.language, len(user_text),
+        )
+        t0 = time.perf_counter()
+        try:
+            spec = self.definer.run(user_text)
+        except Exception:
+            log.exception("Definer.run failed after %.2fs", time.perf_counter() - t0)
+            raise
+        dt = time.perf_counter() - t0
+        log.info(
+            "Definer.run done | %.2fs entities=%d relations=%d tensions=%d",
+            dt, len(spec.entities), len(spec.relations), len(spec.tensions),
+        )
         self.session.problem = spec
         return spec
 
@@ -201,20 +220,35 @@ class Pipeline:
             )
             return agent.run(problem)
 
+        log.info(
+            "Transformer.run start | n=%d model=%s seeds=%s",
+            n, self.model, [s.name for s in seeds],
+        )
+        t0 = time.perf_counter()
         results: list[MetaphorSpec] = []
         errors: list[str] = []
 
         with ThreadPoolExecutor(max_workers=n) as pool:
             futures = {pool.submit(_run_one, seed): seed for seed in seeds}
             for future in as_completed(futures):
+                seed = futures[future]
                 try:
                     results.append(future.result())
                 except Exception as exc:
-                    errors.append(f"{futures[future].name}: {exc}")
+                    # Full traceback to the log file — UI gets short version
+                    log.error(
+                        "Transformer parallel run failed (seed=%s): %s\n%s",
+                        seed.name, exc, traceback.format_exc(),
+                    )
+                    errors.append(f"{seed.name}: {exc}")
 
         # Stash partial errors so the UI can warn the user about silent fails
         # (e.g. you asked for 3 metaphors but only got 2 because one failed).
         self.last_transformer_errors = errors
+        log.info(
+            "Transformer.run done | %.2fs success=%d failed=%d",
+            time.perf_counter() - t0, len(results), len(errors),
+        )
 
         if not results:
             raise RuntimeError(
@@ -242,11 +276,26 @@ class Pipeline:
         """
         if self.session.chosen_metaphor is None:
             raise RuntimeError("User must pick a metaphor first.")
-        move = self.explorer.run(
-            metaphor=self.session.chosen_metaphor,
-            history=self.session.moves,
-            directive=directive,
-            force_different=force_different,
+        log.info(
+            "Explorer.run start | move#%d force_different=%s directive=%r",
+            len(self.session.moves) + 1,
+            force_different,
+            (directive[:40] + "…") if directive and len(directive) > 40 else directive,
+        )
+        t0 = time.perf_counter()
+        try:
+            move = self.explorer.run(
+                metaphor=self.session.chosen_metaphor,
+                history=self.session.moves,
+                directive=directive,
+                force_different=force_different,
+            )
+        except Exception:
+            log.exception("Explorer.run failed after %.2fs", time.perf_counter() - t0)
+            raise
+        log.info(
+            "Explorer.run done | %.2fs actor=%s",
+            time.perf_counter() - t0, move.actor,
         )
         self.session.moves.append(move)
         return move
@@ -264,10 +313,23 @@ class Pipeline:
             raise RuntimeError("No moves to translate yet.")
         if self.session.problem is None or self.session.chosen_metaphor is None:
             raise RuntimeError("Definer and Explorer must run before Translator.")
-        solutions = self.translator.run(
-            problem=self.session.problem,
-            metaphor=self.session.chosen_metaphor,
-            moves=self.session.moves,
+        log.info(
+            "Translator.run start | n_moves=%d model=%s",
+            len(self.session.moves), self.model,
+        )
+        t0 = time.perf_counter()
+        try:
+            solutions = self.translator.run(
+                problem=self.session.problem,
+                metaphor=self.session.chosen_metaphor,
+                moves=self.session.moves,
+            )
+        except Exception:
+            log.exception("Translator.run failed after %.2fs", time.perf_counter() - t0)
+            raise
+        log.info(
+            "Translator.run done | %.2fs n_solutions=%d",
+            time.perf_counter() - t0, len(solutions),
         )
         self.session.solutions = solutions
         return solutions

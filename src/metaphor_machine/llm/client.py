@@ -16,6 +16,8 @@ import re
 from dataclasses import dataclass
 from typing import Any, TypeVar
 
+import time
+
 from pydantic import BaseModel, ValidationError
 from tenacity import (
     retry,
@@ -24,8 +26,12 @@ from tenacity import (
     wait_exponential,
 )
 
+from ..logging_config import get_logger
+
 from .mock import MOCK_REGISTRY, mock_enabled
 from .providers import check_key_for_model
+
+log = get_logger(__name__)
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -94,11 +100,33 @@ class LLMClient:
         if key_error:
             raise LLMError(key_error)
 
-        resp = litellm.completion(
-            model=model,
-            messages=messages,
-            temperature=overrides.get("temperature", self.config.temperature),
-            max_tokens=overrides.get("max_tokens", self.config.max_tokens),
+        t0 = time.perf_counter()
+        try:
+            resp = litellm.completion(
+                model=model,
+                messages=messages,
+                temperature=overrides.get("temperature", self.config.temperature),
+                max_tokens=overrides.get("max_tokens", self.config.max_tokens),
+            )
+        except Exception as exc:
+            log.warning(
+                "litellm.completion FAILED model=%s after %.2fs: %s",
+                model, time.perf_counter() - t0, exc,
+            )
+            raise
+        dt = time.perf_counter() - t0
+        # Pull token usage if the provider returned it
+        usage = getattr(resp, "usage", None) or {}
+        try:
+            in_tok = getattr(usage, "prompt_tokens", None) or usage.get("prompt_tokens")
+            out_tok = getattr(usage, "completion_tokens", None) or usage.get("completion_tokens")
+        except Exception:
+            in_tok = out_tok = None
+        log.info(
+            "llm call ok model=%s temp=%.2f %.2fs in=%s out=%s",
+            model,
+            overrides.get("temperature", self.config.temperature),
+            dt, in_tok, out_tok,
         )
         return resp.choices[0].message.content or ""
 

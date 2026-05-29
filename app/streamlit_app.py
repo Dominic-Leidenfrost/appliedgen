@@ -33,6 +33,13 @@ from metaphor_machine.storage.markdown_store import (  # noqa: E402
     MarkdownStore,
     load_session_from_json,
 )
+from metaphor_machine.logging_config import (  # noqa: E402
+    log_file_path,
+    setup_logging,
+    tail_log,
+)
+
+setup_logging()
 
 
 # ---------------------------------------------------------------------------
@@ -329,6 +336,12 @@ def _fetch_gemini_models(api_key: str) -> list[tuple[str, str]]:
     except (URLError, TimeoutError, _json.JSONDecodeError, OSError):
         return []
 
+    # Image-generation variants (the "Nano Banana" family) still report
+    # generateContent because they're multimodal-output models, but they're
+    # not useful as a text-chat LLM in this app. Filter them out so the
+    # picker stays focused on chat models.
+    IMAGE_GEN_PATTERNS = ("image", "nano-banana")
+
     out: list[tuple[str, str]] = []
     for m in data.get("models", []):
         full_name = m.get("name", "")  # e.g. "models/gemini-2.5-pro"
@@ -338,6 +351,10 @@ def _fetch_gemini_models(api_key: str) -> list[tuple[str, str]]:
         methods = m.get("supportedGenerationMethods", [])
         # Skip embedding-only and other non-chat models
         if "generateContent" not in methods:
+            continue
+        # Skip image-generation models (Nano Banana et al.)
+        lower_id = model_id.lower()
+        if any(p in lower_id for p in IMAGE_GEN_PATTERNS):
             continue
         display = m.get("displayName") or model_id
         out.append((f"{display}  ·  {model_id}", f"gemini/{model_id}"))

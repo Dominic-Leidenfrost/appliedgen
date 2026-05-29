@@ -229,6 +229,8 @@ efficient_llm_inference_anki.csv
 # --- Local runtime data (sessions, caches) — but keep the .gitkeep markers ---
 data/runs/*
 data/cache/*
+data/logs/*
 !data/runs/.gitkeep
 !data/cache/.gitkeep
+!data/logs/.gitkeep
 logs/
