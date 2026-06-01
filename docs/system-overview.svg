@@ -1,0 +1,197 @@
+<svg viewBox="0 0 1560 960" xmlns="http://www.w3.org/2000/svg" font-family="var(--font-sans), system-ui, sans-serif" role="img" aria-labelledby="t d">
+  <title id="t">Metaphor Machine — System und Guardrails</title>
+  <desc id="d">Architektur der 4-Agenten-Pipeline (Definer, Transformer, Explorer, Translator) mit Datenfluss, eingebauten Constraints pro Agent und geteilter Infrastruktur.</desc>
+
+  <defs>
+    <marker id="arr" markerWidth="10" markerHeight="10" refX="7.5" refY="3" orient="auto">
+      <path d="M0,0 L7.5,3 L0,6 Z" fill="#888780"/>
+    </marker>
+  </defs>
+
+  <!-- ===== Title ===== -->
+  <text x="40" y="46" font-size="30" font-weight="700" fill="var(--color-text-primary, #26215C)">Metaphor Machine — System &amp; Guardrails</text>
+  <text x="40" y="74" font-size="15" fill="var(--color-text-secondary, #5F5E5A)">4-Agenten-Pipeline · stateless Agenten + Orchestrator · Applied Generative AI, TU Wien SS2026</text>
+
+  <!-- ===== Legend ===== -->
+  <rect x="1162" y="22" width="378" height="158" rx="10" fill="none" stroke="#D3D1C7" stroke-width="1.2"/>
+  <text x="1180" y="44" font-size="13" font-weight="700" fill="var(--color-text-secondary, #5F5E5A)">LEGENDE</text>
+  <g font-size="13.5" fill="var(--color-text-primary, #2C2C2A)">
+    <rect x="1180" y="56" width="16" height="16" rx="3" fill="#E6F1FB" stroke="#378ADD"/><text x="1204" y="69">UI-Schicht</text>
+    <rect x="1180" y="80" width="16" height="16" rx="3" fill="#EEEDFE" stroke="#7F77DD"/><text x="1204" y="93">Agenten / Pipeline</text>
+    <rect x="1180" y="104" width="16" height="16" rx="3" fill="#E1F5EE" stroke="#1D9E75"/><text x="1204" y="117">Daten-Artefakte (Pydantic)</text>
+    <rect x="1180" y="128" width="16" height="16" rx="3" fill="#FAECE7" stroke="#D85A30"/><text x="1204" y="141">Constraints / Guardrails</text>
+    <rect x="1180" y="152" width="16" height="16" rx="3" fill="#F1EFE8" stroke="#B4B2A9"/><text x="1204" y="165">Geteilte Infrastruktur</text>
+  </g>
+
+  <!-- ===== UI band ===== -->
+  <rect x="40" y="100" width="1090" height="64" rx="10" fill="#E6F1FB" stroke="#378ADD" stroke-width="1.5"/>
+  <text x="60" y="129" font-size="17" font-weight="700" fill="#0C447C">STREAMLIT UI</text>
+  <text x="60" y="151" font-size="13.5" fill="#185FA5">Chat · Struktur-Editor · Timeline + 🎲 · DE/EN-Umschaltung · Modell-Auswahl (live) · Baseline-Vergleich</text>
+
+  <!-- UI -> pipeline arrow -->
+  <line x1="585" y1="164" x2="585" y2="196" stroke="#888780" stroke-width="1.6" marker-end="url(#arr)"/>
+  <text x="595" y="186" font-size="12.5" fill="var(--color-text-secondary,#5F5E5A)">Orchestrator (Pipeline) hält Session-State</text>
+
+  <!-- ===== Agents lane (y 300..404) ===== -->
+  <!-- Transformer stack shadows (drawn first) -->
+  <rect x="441" y="294" width="300" height="104" rx="10" fill="#E3E0FB" stroke="#AFA9EC" stroke-width="1.2"/>
+  <rect x="437" y="297" width="300" height="104" rx="10" fill="#E9E7FD" stroke="#AFA9EC" stroke-width="1.2"/>
+
+  <!-- Definer -->
+  <rect x="40" y="300" width="300" height="104" rx="10" fill="#EEEDFE" stroke="#7F77DD" stroke-width="1.6"/>
+  <text x="58" y="328" font-size="17" font-weight="700" fill="#26215C">1 · DEFINER</text>
+  <rect x="250" y="312" width="74" height="22" rx="11" fill="#534AB7"/><text x="287" y="327" font-size="12.5" font-weight="700" fill="#fff" text-anchor="middle">temp 0.2</text>
+  <text x="58" y="352" font-size="13" fill="#3C3489">Vages Problem → Struktur.</text>
+  <text x="58" y="372" font-size="13" fill="#3C3489">Extrahiert Entitäten, Relationen,</text>
+  <text x="58" y="390" font-size="13" fill="#3C3489">Constraints, Ziele, Spannungen.</text>
+
+  <!-- Transformer -->
+  <rect x="433" y="300" width="300" height="104" rx="10" fill="#EEEDFE" stroke="#7F77DD" stroke-width="1.6"/>
+  <text x="451" y="328" font-size="17" font-weight="700" fill="#26215C">2 · TRANSFORMER ×3</text>
+  <rect x="643" y="312" width="74" height="22" rx="11" fill="#534AB7"/><text x="680" y="327" font-size="12.5" font-weight="700" fill="#fff" text-anchor="middle">temp 0.9</text>
+  <text x="451" y="352" font-size="13" fill="#3C3489">3 Läufe parallel, je eigene</text>
+  <text x="451" y="372" font-size="13" fill="#3C3489">Seed-Domäne. Baut relations-</text>
+  <text x="451" y="390" font-size="13" fill="#3C3489">treue Metapher-Welt.</text>
+
+  <!-- Explorer -->
+  <rect x="826" y="300" width="300" height="104" rx="10" fill="#EEEDFE" stroke="#7F77DD" stroke-width="1.6"/>
+  <text x="844" y="328" font-size="17" font-weight="700" fill="#26215C">3 · EXPLORER (Loop)</text>
+  <rect x="1036" y="312" width="74" height="22" rx="11" fill="#534AB7"/><text x="1073" y="327" font-size="12.5" font-weight="700" fill="#fff" text-anchor="middle">temp 0.7</text>
+  <text x="844" y="352" font-size="13" fill="#3C3489">Spielt Welt autonom durch,</text>
+  <text x="844" y="372" font-size="13" fill="#3C3489">erzeugt Moves. User kuratiert:</text>
+  <text x="844" y="390" font-size="13" fill="#3C3489">steuern · ablehnen · undo.</text>
+
+  <!-- Translator -->
+  <rect x="1219" y="300" width="300" height="104" rx="10" fill="#EEEDFE" stroke="#7F77DD" stroke-width="1.6"/>
+  <text x="1237" y="328" font-size="17" font-weight="700" fill="#26215C">4 · TRANSLATOR</text>
+  <rect x="1429" y="312" width="74" height="22" rx="11" fill="#534AB7"/><text x="1466" y="327" font-size="12.5" font-weight="700" fill="#fff" text-anchor="middle">temp 0.3</text>
+  <text x="1237" y="352" font-size="13" fill="#3C3489">Übersetzt Moves zurück ins</text>
+  <text x="1237" y="372" font-size="13" fill="#3C3489">Originalproblem. Flaggt, wo</text>
+  <text x="1237" y="390" font-size="13" fill="#3C3489">die Analogie bricht.</text>
+
+  <!-- Flow arrows + artifact pills -->
+  <line x1="340" y1="352" x2="429" y2="352" stroke="#888780" stroke-width="1.8" marker-end="url(#arr)"/>
+  <rect x="333" y="262" width="106" height="24" rx="12" fill="#E1F5EE" stroke="#1D9E75"/><text x="386" y="278" font-size="12.5" font-weight="600" fill="#0F6E56" text-anchor="middle">ProblemSpec</text>
+
+  <line x1="733" y1="352" x2="822" y2="352" stroke="#888780" stroke-width="1.8" marker-end="url(#arr)"/>
+  <rect x="717" y="262" width="124" height="24" rx="12" fill="#E1F5EE" stroke="#1D9E75"/><text x="779" y="278" font-size="12.5" font-weight="600" fill="#0F6E56" text-anchor="middle">MetaphorSpec ×3</text>
+  <text x="779" y="430" font-size="12" font-style="italic" fill="var(--color-text-secondary,#5F5E5A)" text-anchor="middle">Diversitätsfilter → User wählt 1</text>
+
+  <line x1="1126" y1="352" x2="1215" y2="352" stroke="#888780" stroke-width="1.8" marker-end="url(#arr)"/>
+  <rect x="1133" y="262" width="86" height="24" rx="12" fill="#E1F5EE" stroke="#1D9E75"/><text x="1176" y="278" font-size="12.5" font-weight="600" fill="#0F6E56" text-anchor="middle">MoveLog</text>
+
+  <!-- Explorer self-loop -->
+  <path d="M1086,300 C1090,272 1126,272 1126,300" fill="none" stroke="#888780" stroke-width="1.6" marker-end="url(#arr)"/>
+  <text x="1106" y="262" font-size="11.5" fill="var(--color-text-secondary,#5F5E5A)" text-anchor="middle">↻ Regenerate ≤2</text>
+
+  <!-- Translator output pill -->
+  <line x1="1369" y1="404" x2="1369" y2="426" stroke="#888780" stroke-width="1.8" marker-end="url(#arr)"/>
+  <rect x="1279" y="430" width="180" height="26" rx="13" fill="#E1F5EE" stroke="#1D9E75"/><text x="1369" y="447" font-size="12.5" font-weight="600" fill="#0F6E56" text-anchor="middle">Solutions + Baseline</text>
+
+  <!-- ===== Guardrails banner ===== -->
+  <text x="40" y="486" font-size="16" font-weight="700" fill="#993C1D">⚙ Eingebaute Constraints — Muster überall: generieren → prüfen → bei Verstoß neu generieren</text>
+
+  <!-- dashed agent->card links -->
+  <line x1="190" y1="404" x2="190" y2="504" stroke="#D85A30" stroke-width="1.2" stroke-dasharray="4 4"/>
+  <line x1="583" y1="404" x2="583" y2="504" stroke="#D85A30" stroke-width="1.2" stroke-dasharray="4 4"/>
+  <line x1="976" y1="404" x2="976" y2="504" stroke="#D85A30" stroke-width="1.2" stroke-dasharray="4 4"/>
+  <line x1="1369" y1="456" x2="1369" y2="504" stroke="#D85A30" stroke-width="1.2" stroke-dasharray="4 4"/>
+
+  <!-- Guardrail cards (y 504..720) -->
+  <g font-size="13" fill="#7a2f16">
+    <!-- Definer -->
+    <rect x="40" y="504" width="300" height="216" rx="10" fill="#FAECE7" stroke="#D85A30" stroke-width="1.5"/>
+    <text x="58" y="530" font-size="14.5" font-weight="700" fill="#993C1D">Definer-Regeln</text>
+    <text x="58" y="558">• Keine Lösungen, keine Metaphern</text>
+    <text x="58" y="583">• Erzwingt Spezifität (konkret statt</text>
+    <text x="58" y="601" font-size="12">  „Team überfordert“)</text>
+    <text x="58" y="626">• Max. 5 Rückfragen (unknowns)</text>
+    <text x="58" y="651">• 1-shot nur für Format, nicht Inhalt</text>
+    <text x="58" y="683" font-size="12.5" font-style="italic" fill="#993C1D">→ schema-validiert (Pydantic)</text>
+
+    <!-- Transformer -->
+    <rect x="433" y="504" width="300" height="216" rx="10" fill="#FAECE7" stroke="#D85A30" stroke-width="1.5"/>
+    <text x="451" y="530" font-size="14.5" font-weight="700" fill="#993C1D">Transformer-Regeln</text>
+    <text x="451" y="558">• ≥ 4 Mappings Pflicht</text>
+    <text x="451" y="583">• Jedes Mapping braucht „leak“</text>
+    <text x="451" y="608">• fidelity &gt; 0.9 ohne leak → neu</text>
+    <text x="451" y="633">• Domäne verpflichtend (Seed)</text>
+    <text x="451" y="658">• ×3 parallel + Diversitätsfilter</text>
+    <text x="451" y="691" font-size="12.5" font-style="italic" fill="#993C1D">→ 1× Regeneration bei Verstoß</text>
+
+    <!-- Explorer -->
+    <rect x="826" y="504" width="300" height="216" rx="10" fill="#FAECE7" stroke="#D85A30" stroke-width="1.5"/>
+    <text x="844" y="530" font-size="14.5" font-weight="700" fill="#993C1D">Explorer-Regeln</text>
+    <text x="844" y="556">• Verbotene Wörter (YAML, DE/EN):</text>
+    <text x="844" y="574" font-size="12">  „synergy“, „leverage“, „align“ …</text>
+    <text x="844" y="599">• Benannte Entität Pflicht</text>
+    <text x="844" y="624">• Obstacle (Hindernis) Pflicht</text>
+    <text x="844" y="649">• In der Metapher bleiben</text>
+    <text x="844" y="674">• Strategische Diversität pro Move</text>
+    <text x="844" y="700" font-size="12.5" font-style="italic" fill="#993C1D">→ Regenerate ≤ 2 bei Verstoß</text>
+
+    <!-- Translator -->
+    <rect x="1219" y="504" width="300" height="216" rx="10" fill="#FAECE7" stroke="#D85A30" stroke-width="1.5"/>
+    <text x="1237" y="530" font-size="14.5" font-weight="700" fill="#993C1D">Translator-Regeln</text>
+    <text x="1237" y="558">• Caveats Pflicht</text>
+    <text x="1237" y="576" font-size="12">  (0 Caveats = überheblich)</text>
+    <text x="1237" y="601">• Confidence aus mapping-fidelity</text>
+    <text x="1237" y="626">• Zitiert „leak“ in den Caveats</text>
+    <text x="1237" y="651">• Baseline ohne Metapher (Vergleich)</text>
+    <text x="1237" y="683" font-size="12.5" font-style="italic" fill="#993C1D">→ 1 Solution pro Move</text>
+  </g>
+
+  <!-- ===== Infrastructure ===== -->
+  <text x="40" y="760" font-size="16" font-weight="700" fill="var(--color-text-primary,#444441)">Geteilte Infrastruktur — von allen Agenten genutzt</text>
+
+  <g>
+    <!-- LLM Client -->
+    <rect x="40" y="775" width="232" height="130" rx="10" fill="#F1EFE8" stroke="#B4B2A9" stroke-width="1.4"/>
+    <text x="56" y="798" font-size="13.5" font-weight="700" fill="#2C2C2A">LLM-Client (LiteLLM)</text>
+    <text x="56" y="820" font-size="11" fill="#444441">Multi-Provider: Anthropic ·</text>
+    <text x="56" y="836" font-size="11" fill="#444441">OpenAI · Gemini · OpenRouter</text>
+    <text x="56" y="856" font-size="11" fill="#444441">Structured Output + Pydantic-</text>
+    <text x="56" y="872" font-size="11" fill="#444441">Retry ×2 · tenacity ×3 (Backoff)</text>
+    <text x="56" y="892" font-size="11" fill="#444441">Mock-Modus (Tests / ohne Key)</text>
+
+    <!-- Schemas -->
+    <rect x="288" y="775" width="232" height="130" rx="10" fill="#F1EFE8" stroke="#B4B2A9" stroke-width="1.4"/>
+    <text x="304" y="798" font-size="13.5" font-weight="700" fill="#2C2C2A">Pydantic-Schemas</text>
+    <text x="304" y="820" font-size="11" fill="#444441">Verträge zwischen Agenten</text>
+    <text x="304" y="840" font-size="11" fill="#444441">ProblemSpec · MetaphorSpec</text>
+    <text x="304" y="856" font-size="11" fill="#444441">Move · Solution</text>
+    <text x="304" y="880" font-size="11" fill="#444441">Validierung erzwingt Struktur</text>
+
+    <!-- Seed domains -->
+    <rect x="536" y="775" width="232" height="130" rx="10" fill="#F1EFE8" stroke="#B4B2A9" stroke-width="1.4"/>
+    <text x="552" y="798" font-size="13.5" font-weight="700" fill="#2C2C2A">Seed-Domänen (9 YAML)</text>
+    <text x="552" y="820" font-size="11" fill="#444441">pirate · garden · kitchen ·</text>
+    <text x="552" y="836" font-size="11" fill="#444441">ecosystem · heist · sports …</text>
+    <text x="552" y="856" font-size="11" fill="#444441">pick_diverse → 3 versch. Welten</text>
+    <text x="552" y="876" font-size="11" fill="#444441">Style-Hint, kein Template</text>
+
+    <!-- forbidden words -->
+    <rect x="784" y="775" width="232" height="130" rx="10" fill="#F1EFE8" stroke="#B4B2A9" stroke-width="1.4"/>
+    <text x="800" y="798" font-size="13.5" font-weight="700" fill="#2C2C2A">forbidden_words.yaml</text>
+    <text x="800" y="820" font-size="11" fill="#444441">DE/EN Weasel-Word-Listen</text>
+    <text x="800" y="840" font-size="11" fill="#444441">Anti-Allgemeinplatz-Hebel</text>
+    <text x="800" y="860" font-size="11" fill="#444441">no-code editierbar</text>
+    <text x="800" y="880" font-size="11" fill="#444441">geprüft im Explorer/Validator</text>
+
+    <!-- Storage -->
+    <rect x="1032" y="775" width="232" height="130" rx="10" fill="#F1EFE8" stroke="#B4B2A9" stroke-width="1.4"/>
+    <text x="1048" y="798" font-size="13.5" font-weight="700" fill="#2C2C2A">Storage</text>
+    <text x="1048" y="820" font-size="11" fill="#444441">pro Run: *.md (Mensch)</text>
+    <text x="1048" y="836" font-size="11" fill="#444441">+ *.json (Replay)</text>
+    <text x="1048" y="856" font-size="11" fill="#444441">data/runs/&lt;ts&gt;-&lt;slug&gt;/</text>
+    <text x="1048" y="876" font-size="11" fill="#444441">problem · metaphors · transcript</text>
+
+    <!-- Logging / persistence -->
+    <rect x="1280" y="775" width="232" height="130" rx="10" fill="#F1EFE8" stroke="#B4B2A9" stroke-width="1.4"/>
+    <text x="1296" y="798" font-size="13.5" font-weight="700" fill="#2C2C2A">Logging + Persistenz</text>
+    <text x="1296" y="820" font-size="11" fill="#444441">zentrales Logfile + Viewer</text>
+    <text x="1296" y="840" font-size="11" fill="#444441">Modell + Sprache überleben</text>
+    <text x="1296" y="856" font-size="11" fill="#444441">Reloads / Restarts</text>
+    <text x="1296" y="876" font-size="11" fill="#444441">per-Agent Temperatur-Config</text>
+  </g>
+</svg>

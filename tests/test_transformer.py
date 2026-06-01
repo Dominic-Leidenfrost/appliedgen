@@ -123,3 +123,38 @@ def test_pipeline_stores_candidates(minimal_problem):
     pipeline.session.problem = minimal_problem
     pipeline.run_transformer(n=2)
     assert len(pipeline.session.metaphor_candidates) >= 1
+
+
+# ---------------------------------------------------------------------------
+# Free-domain mode (AI invents its own domain, no seed)
+# ---------------------------------------------------------------------------
+
+def test_transformer_free_mode_flag_and_run(minimal_problem):
+    from metaphor_machine.agents.transformer import FREE_DIRECTIVE
+
+    # free_mode wins even if a style_hint is passed.
+    agent = TransformerAgent(style_hint="pirate adventure", free_mode=True)
+    assert agent.free_mode is True
+    result = agent.run(minimal_problem)
+    assert isinstance(result, MetaphorSpec)
+    assert "FREE DOMAIN MODE" in FREE_DIRECTIVE
+
+
+def test_pipeline_run_transformer_free_domains(minimal_problem):
+    pipeline = Pipeline()
+    pipeline.session.problem = minimal_problem
+    candidates = pipeline.run_transformer(n=3, free_domains=True)
+    assert isinstance(candidates, list)
+    assert len(candidates) >= 1
+    for c in candidates:
+        assert isinstance(c, MetaphorSpec)
+
+
+def test_pipeline_run_transformer_default_is_pool(minimal_problem):
+    # Default (free_domains=False) must keep behaving exactly as before.
+    pipeline = Pipeline()
+    pipeline.session.problem = minimal_problem
+    candidates = pipeline.run_transformer(n=2)
+    assert len(candidates) >= 1
+    for c in candidates:
+        assert isinstance(c, MetaphorSpec)

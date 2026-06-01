@@ -198,49 +198,72 @@ class Pipeline:
         return spec
 
     # --- step 2: Transformer (×N parallel) ---
-    def run_transformer(self, n: int = 3) -> list[MetaphorSpec]:
+    def run_transformer(self, n: int = 3, free_domains: bool = False) -> list[MetaphorSpec]:
+        """Generate ``n`` metaphor candidates via ``n`` parallel Transformer runs.
+
+        Args:
+            n: number of parallel runs / candidates.
+            free_domains: if False (default), each run is seeded with a distinct
+                domain from the built-in pool (examples/domains/*.yaml) — the
+                original behaviour. If True, NO seed is given and each run must
+                INVENT its own domain, which can surface domains outside the
+                curated pool. Wired to the "Free domains" sidebar toggle.
+        """
         if self.session.problem is None:
             raise RuntimeError("Run the Definer first.")
-
-        seeds: list[DomainSeed] = pick_diverse(n=n)
-        # If no seed domains found (e.g. wrong working dir in tests), run without hints.
-        if not seeds:
-            from ..prompts.domains import DomainSeed as _DS
-            seeds = [_DS(name=f"domain_{i}", display="", description="", vocabulary=[], archetypal_entities={}, typical_relations=[]) for i in range(n)]
         problem = self.session.problem
 
         transformer_config = self._config_for("transformer")
         transformer_language = self.language
 
-        def _run_one(seed: DomainSeed) -> MetaphorSpec:
+        # Build the n run units. Each unit has a label (for logging / error
+        # reporting) and an optional seed. In free mode there are no seeds.
+        if free_domains:
+            labels = [f"free_{i + 1}" for i in range(n)]
+            seeds_by_label: dict[str, DomainSeed | None] = {lbl: None for lbl in labels}
+        else:
+            seeds: list[DomainSeed] = pick_diverse(n=n)
+            # If no seed domains found (e.g. wrong working dir in tests), run without hints.
+            if not seeds:
+                from ..prompts.domains import DomainSeed as _DS
+                seeds = [
+                    _DS(name=f"domain_{i}", display="", description="", vocabulary=[],
+                        archetypal_entities={}, typical_relations=[])
+                    for i in range(n)
+                ]
+            labels = [s.name for s in seeds]
+            seeds_by_label = dict(zip(labels, seeds))
+
+        def _run_one(label: str) -> MetaphorSpec:
             agent = TransformerAgent(
-                style_hint=seed,
+                style_hint=seeds_by_label[label],
+                free_mode=free_domains,
                 config=transformer_config,
                 language=transformer_language,
             )
             return agent.run(problem)
 
         log.info(
-            "Transformer.run start | n=%d model=%s seeds=%s",
-            n, self.model, [s.name for s in seeds],
+            "Transformer.run start | n=%d model=%s free=%s units=%s",
+            n, self.model, free_domains, labels,
         )
         t0 = time.perf_counter()
         results: list[MetaphorSpec] = []
         errors: list[str] = []
 
         with ThreadPoolExecutor(max_workers=n) as pool:
-            futures = {pool.submit(_run_one, seed): seed for seed in seeds}
+            futures = {pool.submit(_run_one, lbl): lbl for lbl in labels}
             for future in as_completed(futures):
-                seed = futures[future]
+                label = futures[future]
                 try:
                     results.append(future.result())
                 except Exception as exc:
                     # Full traceback to the log file — UI gets short version
                     log.error(
-                        "Transformer parallel run failed (seed=%s): %s\n%s",
-                        seed.name, exc, traceback.format_exc(),
+                        "Transformer parallel run failed (unit=%s): %s\n%s",
+                        label, exc, traceback.format_exc(),
                     )
-                    errors.append(f"{seed.name}: {exc}")
+                    errors.append(f"{label}: {exc}")
 
         # Stash partial errors so the UI can warn the user about silent fails
         # (e.g. you asked for 3 metaphors but only got 2 because one failed).

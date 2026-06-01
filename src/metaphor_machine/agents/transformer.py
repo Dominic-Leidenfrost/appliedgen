@@ -84,6 +84,23 @@ Example (organizational overload → pirate adventure):
 }
 """
 
+# Used in "free domain" mode: no seed is given, so the model must invent the
+# metaphor domain itself. The point is reach — surfacing domains we wouldn't
+# have seeded. We still demand the same structural rigour (≥4 mappings, leaks).
+FREE_DIRECTIVE = """\
+FREE DOMAIN MODE: No domain is provided. YOU must invent the metaphor domain yourself.
+- Pick a NON-OBVIOUS, surprising domain whose structure genuinely fits the problem.
+- Avoid the usual clichés (pirates, war/battles, sports, cooking, gardening, generic
+  journeys) UNLESS the structural fit is exceptional and you can defend it.
+- Reach into unexpected territory, e.g.: mycelial networks, tidal estuaries, jazz
+  improvisation, air-traffic control, beekeeping, glassblowing, plate tectonics,
+  archival science, coral reefs, supply chains, orchestral tuning — or something
+  entirely your own that no preset list would contain.
+- Name the invented domain clearly in the `domain` field.
+- All normal rules still apply: ≥4 mappings, every mapping needs an honest `leak`,
+  preserve relational structure, list invariants_preserved / invariants_broken.\
+"""
+
 
 class TransformerAgent(Agent):
     def __init__(
@@ -91,6 +108,7 @@ class TransformerAgent(Agent):
         style_hint: str | DomainSeed | None = None,
         config: LLMConfig | None = None,
         language: str = "en",
+        free_mode: bool = False,
     ) -> None:
         super().__init__(
             name="transformer",
@@ -98,6 +116,9 @@ class TransformerAgent(Agent):
             config=config or LLMConfig(temperature=0.9),
             language=language,  # type: ignore[arg-type]
         )
+        # free_mode wins: when set, no fixed domain is imposed and the model
+        # invents one. A style_hint is ignored in that case.
+        self.free_mode = free_mode
         # Accept a raw string OR a DomainSeed dataclass
         if isinstance(style_hint, str):
             self.style_hint_text = style_hint
@@ -109,11 +130,14 @@ class TransformerAgent(Agent):
     def run(self, problem: ProblemSpec) -> MetaphorSpec:
         problem_json = json.dumps(problem.model_dump(), indent=2)
 
-        hint_block = (
-            f"\n\nDomain style hint (you MUST use this domain):\n{self.style_hint_text}"
-            if self.style_hint_text
-            else ""
-        )
+        if self.free_mode:
+            hint_block = "\n\n" + FREE_DIRECTIVE
+        elif self.style_hint_text:
+            hint_block = (
+                f"\n\nDomain style hint (you MUST use this domain):\n{self.style_hint_text}"
+            )
+        else:
+            hint_block = ""
 
         messages = [
             {"role": "system", "content": self.system_prompt},

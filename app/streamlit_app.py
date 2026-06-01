@@ -256,6 +256,20 @@ I18N: dict[str, dict[str, str]] = {
         "confidence": "Konfidenz",
         "Metaphor": "Metapher",
         "e.g. {example}": "z.B. {example}",
+        # --- Free domains toggle ---
+        "Free domains (AI invents its own)": "Freie Domänen (KI erfindet eigene)",
+        (
+            "Off: 3 metaphors from the built-in domain pool (pirate, garden, …). "
+            "On: no seed domains — the AI must invent its own, possibly surprising, "
+            "domains itself."
+        ): (
+            "Aus: 3 Metaphern aus dem vorgefertigten Domänen-Pool (Pirat, Garten, …). "
+            "An: keine Seed-Domänen — die KI muss selbst eigene, evtl. überraschende "
+            "Domänen erfinden."
+        ),
+        "Generating 3 metaphors in parallel — AI invents its own domains…": (
+            "Generiere 3 Metaphern parallel — die KI erfindet eigene Domänen…"
+        ),
     },
 }
 
@@ -605,6 +619,19 @@ with st.sidebar:
             missing_part = " — " + t("no key for this provider", LANG)
         st.caption(f"{'🟢' if key_ok else '🔴'} {active_label}: `{active}`{missing_part}")
 
+    # --- Domain mode: pool (default) vs. AI-invented ---
+    st.session_state.setdefault("free_domains", False)
+    st.toggle(
+        t("Free domains (AI invents its own)", LANG),
+        key="free_domains",
+        help=t(
+            "Off: 3 metaphors from the built-in domain pool (pirate, garden, …). "
+            "On: no seed domains — the AI must invent its own, possibly surprising, "
+            "domains itself.",
+            LANG,
+        ),
+    )
+
     with st.expander(t("Per-agent temperatures", LANG)):
         st.slider(t("Definer", LANG), 0.0, 1.5, 0.2, 0.1, key="temp_definer")
         st.slider(t("Transformer", LANG), 0.0, 1.5, 0.9, 0.1, key="temp_transformer")
@@ -936,11 +963,15 @@ with chat_col:
                 type="primary",
                 use_container_width=True,
             ):
-                with st.spinner(
-                    t("Generating 3 metaphors in parallel (one per seed domain)…", LANG)
-                ):
+                free_domains = bool(st.session_state.get("free_domains", False))
+                spinner_txt = (
+                    t("Generating 3 metaphors in parallel — AI invents its own domains…", LANG)
+                    if free_domains
+                    else t("Generating 3 metaphors in parallel (one per seed domain)…", LANG)
+                )
+                with st.spinner(spinner_txt):
                     try:
-                        candidates = pipeline.run_transformer(n=3)
+                        candidates = pipeline.run_transformer(n=3, free_domains=free_domains)
                         msg = t(
                             "Generated {n} metaphor candidate(s). Pick one to begin exploring.",
                             LANG,
