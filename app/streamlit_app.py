@@ -55,7 +55,7 @@ I18N: dict[str, dict[str, str]] = {
         "Connected": "Verbunden",
         "No API key found. Set one of `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY` or `OPENROUTER_API_KEY` in `.env`, then restart `streamlit run` (the .env is only read at startup). Or run with `METAPHOR_MOCK=1`.": (
             "Kein API-Key gefunden. Trage einen von `ANTHROPIC_API_KEY`, "
-            "`OPENAI_API_KEY`, `GEMINI_API_KEY` oder `OPENROUTER_API_KEY` "
+            "`OPENAI_API_KEY`, `GEMINI_API_KEY`, `GROQ_API_KEY` oder `OPENROUTER_API_KEY` "
             "in `.env` ein und starte `streamlit run` neu (die .env wird "
             "nur beim Start gelesen). Oder starte mit `METAPHOR_MOCK=1`."
         ),
@@ -443,6 +443,7 @@ with st.sidebar:
         "Anthropic": "ANTHROPIC_API_KEY",
         "OpenAI": "OPENAI_API_KEY",
         "Gemini": "GEMINI_API_KEY",
+        "Groq": "GROQ_API_KEY",
         "OpenRouter": "OPENROUTER_API_KEY",
     }
     connected = [name for name, env in provider_keys.items() if os.getenv(env)]
@@ -453,7 +454,7 @@ with st.sidebar:
         st.error(
             t(
                 "No API key found. Set one of `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, "
-                "`GEMINI_API_KEY` or `OPENROUTER_API_KEY` in `.env`, then restart "
+                "`GEMINI_API_KEY`, `GROQ_API_KEY` or `OPENROUTER_API_KEY` in `.env`, then restart "
                 "`streamlit run` (the .env is only read at startup). "
                 "Or run with `METAPHOR_MOCK=1`.",
                 LANG,
@@ -607,6 +608,7 @@ with st.sidebar:
             "anthropic": "ANTHROPIC_API_KEY",
             "openai": "OPENAI_API_KEY",
             "gemini": "GEMINI_API_KEY",
+            "groq": "GROQ_API_KEY",
             "openrouter": "OPENROUTER_API_KEY",
         }.get(active_prefix, "")
         key_ok = bool(provider_env) and bool(os.getenv(provider_env))

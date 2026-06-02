@@ -102,6 +102,17 @@ PROVIDERS: list[Provider] = [
         ],
         notes="Set OPENROUTER_API_KEY in .env — access to 100+ models at openrouter.ai",
     ),
+    Provider(
+        key="groq",
+        display="Groq",
+        env_var="GROQ_API_KEY",
+        models=[
+            ModelOption("Llama 3.1 8B Instant (recommended)", "groq/llama-3.1-8b-instant"),
+            ModelOption("Llama 3.3 70B Versatile", "groq/llama-3.3-70b-versatile"),
+            ModelOption("Gemma 2 9B IT", "groq/gemma2-9b-it"),
+        ],
+        notes="Set GROQ_API_KEY in .env - get one at console.groq.com/keys",
+    ),
 ]
 
 # Fast lookup by key

@@ -78,6 +78,9 @@ All configuration is done through environment variables (or the in-app sidebar).
 |---|---|---|
 | `ANTHROPIC_API_KEY` | — | Required if using Claude models |
 | `OPENAI_API_KEY` | — | Required if using GPT models |
+| `GEMINI_API_KEY` | - | Required if using Gemini models |
+| `GROQ_API_KEY` | - | Required if using Groq models, e.g. `groq/llama-3.1-8b-instant` |
+| `OPENROUTER_API_KEY` | - | Required if using OpenRouter models |
 | `METAPHOR_DEFAULT_MODEL` | `anthropic/claude-sonnet-4-6` | Any LiteLLM model string |
 | `METAPHOR_DEFAULT_TEMPERATURE` | `0.7` | Higher for exploration, lower for extraction |
 | `METAPHOR_DATA_DIR` | `./data/runs` | Where session markdown files are written |
