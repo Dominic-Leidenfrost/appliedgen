@@ -1,0 +1,27 @@
+name: archival_library
+display: Archive & Library
+description: |
+  Archivists managing a sprawling collection where retrieval, decay, and
+  classification all compete for the same scarce hours. Good for:
+  information overload, hidden connections across silos, the tension
+  between preserving something and making it accessible.
+vocabulary:
+  - catalog
+  - stack
+  - acquisition
+  - restoration
+  - cross-reference
+  - provenance
+  - reading_room
+  - backlog
+  - microfilm
+  - deaccession
+archetypal_entities:
+  actors: [archivist, researcher, conservator, donor]
+  resources: [shelf_space, climate_control, cataloging_hours, expert_knowledge]
+  obstacles: [water_damage, mislabeled_box, funding_cut, competing_request]
+  environment: [stacks, reading_room, restoration_lab, off_site_storage]
+typical_relations:
+  - "[document] decays_without [climate_control]"
+  - "[researcher] depends_on [catalog] to [locate item]"
+  - "[backlog] grows_with [acquisition_rate]"

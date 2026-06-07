@@ -1,0 +1,27 @@
+name: mountaineering_expedition
+display: Mountaineering Expedition
+description: |
+  A climbing team ascending toward a summit, racing the weather and their
+  own dwindling reserves. Good for: resource depletion over time,
+  escalating risk thresholds, point-of-no-return decisions, and roles that
+  are tightly interdependent on a single rope.
+vocabulary:
+  - basecamp
+  - acclimatization
+  - summit_window
+  - crevasse
+  - oxygen
+  - rope_team
+  - whiteout
+  - turnaround_time
+  - altitude_sickness
+  - cache
+archetypal_entities:
+  actors: [lead_climber, sherpa, expedition_doctor, basecamp_manager]
+  resources: [oxygen_supply, daylight_hours, food_cache, physical_reserves]
+  obstacles: [storm_front, crevasse_field, altitude_sickness, frostbite]
+  environment: [basecamp, high_camp, summit_ridge, glacier]
+typical_relations:
+  - "[summit_attempt] depends_on [weather_window]"
+  - "[climber] weakens_with [altitude_exposure]"
+  - "[turnaround_time] forces [team] to [abandon the attempt]"

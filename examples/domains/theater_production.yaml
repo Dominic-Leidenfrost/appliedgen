@@ -1,0 +1,27 @@
+name: theater_production
+display: Theater Production
+description: |
+  A troupe rehearsing a play through previews toward opening night, under
+  the eyes of critics and an unpredictable audience. Good for: balancing
+  rehearsed structure against live improvisation, ensemble dynamics vs.
+  star performers, and feedback loops from audiences and critics.
+vocabulary:
+  - rehearsal
+  - blocking
+  - understudy
+  - preview
+  - opening_night
+  - improvisation
+  - stage_direction
+  - curtain_call
+  - review
+  - prop
+archetypal_entities:
+  actors: [director, lead_actor, understudy, stage_manager, critic]
+  resources: [rehearsal_time, budget, stage_space, audience_goodwill]
+  obstacles: [forgotten_line, prop_malfunction, scathing_review, cast_illness]
+  environment: [stage, green_room, rehearsal_hall, box_office]
+typical_relations:
+  - "[performance] depends_on [rehearsal_time]"
+  - "[understudy] substitutes_for [lead_actor] under [illness]"
+  - "[reputation] shifts_with [critic_review]"

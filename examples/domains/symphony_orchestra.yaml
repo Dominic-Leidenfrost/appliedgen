@@ -1,0 +1,27 @@
+name: symphony_orchestra
+display: Symphony Orchestra
+description: |
+  An orchestra preparing a piece across weeks of rehearsal toward a single
+  live performance. Good for: coordination under strict timing, individual
+  mastery vs. collective coherence, authority delegated through section
+  hierarchies, high stakes from a one-shot live event.
+vocabulary:
+  - conductor
+  - score
+  - section
+  - tempo
+  - rehearsal
+  - solo
+  - dissonance
+  - tuning
+  - cue
+  - encore
+archetypal_entities:
+  actors: [conductor, concertmaster, section_leader, soloist, understudy]
+  resources: [rehearsal_time, sheet_music, instrument_quality, stage_acoustics]
+  obstacles: [missed_cue, instrument_failure, scheduling_conflict, critic_review]
+  environment: [concert_hall, rehearsal_room, green_room, tour_circuit]
+typical_relations:
+  - "[section] follows_tempo_of [conductor]"
+  - "[soloist] depends_on [section] for [timing]"
+  - "[performance_quality] degrades_with [under-rehearsal]"

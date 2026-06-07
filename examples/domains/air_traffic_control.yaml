@@ -1,0 +1,27 @@
+name: air_traffic_control
+display: Air Traffic Control Tower
+description: |
+  Controllers juggling converging flights through a single stretch of
+  airspace under hard safety margins and shrinking time windows.
+  Good for: real-time prioritization, cascading risk from small delays,
+  high-stakes calls made on incomplete information.
+vocabulary:
+  - runway
+  - clearance
+  - holding_pattern
+  - radar
+  - separation
+  - handoff
+  - go-around
+  - flight_strip
+  - weather_window
+  - shift_change
+archetypal_entities:
+  actors: [controller, pilot, supervisor, ground_crew]
+  resources: [runway_slots, radar_coverage, fuel_reserves, attention_bandwidth]
+  obstacles: [storm_front, equipment_outage, communication_delay, congested_airspace]
+  environment: [control_tower, runway, holding_airspace, approach_corridor]
+typical_relations:
+  - "[controller] sequences [aircraft] through [holding_pattern]"
+  - "[delay] propagates_to [downstream_flights]"
+  - "[safety_margin] shrinks_under [congestion]"
