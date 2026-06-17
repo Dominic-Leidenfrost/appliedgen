@@ -486,3 +486,40 @@ class Pipeline:
             time.perf_counter() - t0, result.winner, result.order,
         )
         return result
+
+    def run_judge_batch(
+        self,
+        n: int = 5,
+        baseline_text: str | None = None,
+        *,
+        base_seed: int = 0,
+    ) -> list[ComparisonResult]:
+        """Run the judge ``n`` times on the SAME answers and return all verdicts.
+
+        Each run gets a different seed, so the A/B order is shuffled differently
+        every time. A robust verdict should survive that shuffle; the spread
+        across runs is exactly the position-bias signal. The baseline is
+        generated once and reused across all runs, so every run judges the same
+        two answers (only the presentation order changes) — and we don't pay for
+        N baselines.
+
+        Returns the list of per-run results; use ``summarize_runs`` to turn it
+        into counts and a win-rate.
+        """
+        n = max(1, int(n))
+        if self.session.problem is None:
+            raise RuntimeError("Run the Definer first.")
+        if not self.session.solutions:
+            raise RuntimeError("Run the Translator first — nothing to judge.")
+
+        baseline = baseline_text if baseline_text else self.run_baseline()
+        log.info("Judge.batch start | n=%d model=%s", n, self.model)
+        t0 = time.perf_counter()
+        results = [
+            self.run_judge(baseline_text=baseline, seed=base_seed + i)
+            for i in range(n)
+        ]
+        log.info(
+            "Judge.batch done | %.2fs n=%d", time.perf_counter() - t0, len(results)
+        )
+        return results

@@ -13,7 +13,7 @@ import pytest
 
 os.environ.setdefault("METAPHOR_MOCK", "1")
 
-from metaphor_machine.agents.judge import JudgeAgent
+from metaphor_machine.agents.judge import JudgeAgent, summarize_runs
 from metaphor_machine.core.pipeline import Pipeline
 from metaphor_machine.core.schemas import (
     JUDGE_CRITERIA,
@@ -113,6 +113,61 @@ def test_pipeline_run_judge_end_to_end():
     res = pipe.run_judge(baseline_text="Just try to focus more and prioritise.")
     assert isinstance(res, ComparisonResult)
     assert res.winner in ("metaphor", "baseline", "tie")
+
+
+def test_pipeline_run_judge_batch_returns_n_results():
+    pipe = Pipeline()
+    pipe.run_definer("a team with too much work")
+    pipe.session.solutions = [
+        Solution(
+            metaphor_idea="drop anchor",
+            original_domain_translation="Time-box the top two projects for two days.",
+            confidence=0.7,
+        )
+    ]
+    runs = pipe.run_judge_batch(n=5, baseline_text="Just focus more.")
+    assert len(runs) == 5
+    assert all(isinstance(r, ComparisonResult) for r in runs)
+
+
+def test_run_judge_batch_clamps_to_at_least_one():
+    pipe = Pipeline()
+    pipe.run_definer("x")
+    pipe.session.solutions = [
+        Solution(metaphor_idea="m", original_domain_translation="do x", confidence=0.5)
+    ]
+    assert len(pipe.run_judge_batch(n=0, baseline_text="b")) == 1
+
+
+def test_summarize_runs_counts_and_win_rate():
+    runs = [
+        ComparisonResult(winner="metaphor", criteria_winners={"specificity": "metaphor"}),
+        ComparisonResult(winner="metaphor", criteria_winners={"specificity": "baseline"}),
+        ComparisonResult(winner="baseline", criteria_winners={}),
+        ComparisonResult(winner="tie", criteria_winners={}),
+    ]
+    s = summarize_runs(runs)
+    assert s["n"] == 4
+    assert s["counts"] == {"metaphor": 2, "baseline": 1, "tie": 1}
+    # (2 + 0.5*1) / 4 = 0.625
+    assert abs(s["win_rate"] - 0.625) < 1e-9
+    assert s["per_criterion"]["specificity"] == {"metaphor": 1, "baseline": 1, "tie": 0}
+
+
+def test_relabel_reasoning_replaces_blind_ab_references():
+    # metaphor_first=True  -> A is metaphor, B is baseline
+    txt = "Answer A is more concrete. B is vague. On balance A wins."
+    out = JudgeAgent._relabel(txt, metaphor_first=True)
+    assert "Answer A" not in out and "Metaphor Machine" in out
+    assert "the baseline answer" in out  # from "B is vague"
+    # flipped order
+    out2 = JudgeAgent._relabel("A wins.", metaphor_first=False)
+    assert out2 == "the baseline answer wins."
+
+
+def test_relabel_leaves_plain_text_untouched():
+    txt = "Both answers are concrete and address the problem."
+    assert JudgeAgent._relabel(txt, metaphor_first=True) == txt
 
 
 def test_format_solutions_for_judge_is_numbered_and_original_domain_only():

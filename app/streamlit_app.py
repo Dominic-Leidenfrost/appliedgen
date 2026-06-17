@@ -26,6 +26,7 @@ import streamlit as st  # noqa: E402
 
 from metaphor_machine.core.pipeline import Pipeline  # noqa: E402
 from metaphor_machine.core.schemas import MetaphorSpec, Move, ProblemSpec, Solution  # noqa: E402
+from metaphor_machine.evaluation import run_evaluation  # noqa: E402
 from metaphor_machine.llm.mock import mock_enabled  # noqa: E402
 from metaphor_machine.llm.providers import PROVIDERS  # noqa: E402
 from metaphor_machine.prompts.language import resolve_language  # noqa: E402
@@ -195,6 +196,97 @@ I18N: dict[str, dict[str, str]] = {
         "metaphor": "Metapher",
         "baseline": "Baseline",
         "tie": "Unentschieden",
+        # --- Judge: batch / multiple runs ---
+        "Runs": "Durchläufe",
+        "How many times to judge. Each run reshuffles the blind A/B order; "
+        "more runs = a more robust win-rate, less affected by position bias.": (
+            "Wie oft bewertet wird. Jeder Durchlauf mischt die blinde A/B-"
+            "Reihenfolge neu; mehr Durchläufe = robustere Win-Rate, weniger "
+            "Positions-Bias."
+        ),
+        "Running {n} judge passes…": "{n} Judge-Durchläufe laufen…",
+        "⚖️ Judge result ({n} runs)": "⚖️ Judge-Ergebnis ({n} Durchläufe)",
+        "Win-rate (Metaphor Machine, ties = ½)": (
+            "Win-Rate (Metaphor Machine, Unentschieden = ½)"
+        ),
+        "Metaphor {m} · Baseline {b} · Tie {t} of {n}": (
+            "Metapher {m} · Baseline {b} · Unentschieden {t} von {n}"
+        ),
+        "Per run": "Pro Durchlauf",
+        "Run {i}: **{winner}** (shown {order})": (
+            "Durchlauf {i}: **{winner}** (gezeigt {order})"
+        ),
+        "↻ Re-judge": "↻ Neu bewerten",
+        # --- Evaluation mode ---
+        "Mode": "Modus",
+        "🎭 Interactive": "🎭 Interaktiv",
+        "📊 Evaluation": "📊 Evaluation",
+        "📊 Evaluation — Metaphor Machine vs. Baseline": (
+            "📊 Evaluation — Metaphor Machine vs. Baseline"
+        ),
+        "Runs the full pipeline on one or more problems, then has the "
+        "LLM-as-Judge compare the metaphor answer against the no-metaphor "
+        "baseline several times (blind, randomised order). The headline "
+        "number is the win-rate.": (
+            "Lässt die ganze Pipeline über ein oder mehrere Probleme laufen und "
+            "lässt den LLM-as-Judge die Metapher-Antwort mehrfach gegen die "
+            "Baseline (ohne Metapher) vergleichen (blind, zufällige Reihenfolge). "
+            "Die Kernzahl ist die Win-Rate."
+        ),
+        "mock fixtures": "Mock-Fixtures",
+        "Model (pick in the sidebar): **{model}**": (
+            "Modell (in der Seitenleiste wählbar): **{model}**"
+        ),
+        "Problems to evaluate": "Zu evaluierende Probleme",
+        "Built-in problem set": "Eingebauter Problem-Satz",
+        "Current session problem": "Aktuelles Sitzungs-Problem",
+        "Custom (one per line)": "Eigene (eine pro Zeile)",
+        "Custom problems — one per line": "Eigene Probleme — eine pro Zeile",
+        "Describe a problem…": "Beschreibe ein Problem…",
+        "Judge runs / problem": "Judge-Durchläufe / Problem",
+        "Metaphors / problem": "Metaphern / Problem",
+        "Explorer moves": "Explorer-Züge",
+        "How many times to judge each problem. Each run reshuffles the "
+        "blind A/B order; more runs = a more robust, less position-biased "
+        "win-rate.": (
+            "Wie oft jedes Problem bewertet wird. Jeder Durchlauf mischt die "
+            "blinde A/B-Reihenfolge neu; mehr Durchläufe = robustere, weniger "
+            "positions-verzerrte Win-Rate."
+        ),
+        "▶️ Run evaluation": "▶️ Evaluation starten",
+        "⚠️ This makes real LLM calls — roughly (definer + metaphors + "
+        "moves + translator + baseline + runs) calls per problem. Start "
+        "small.": (
+            "⚠️ Das macht echte LLM-Aufrufe — grob (Definer + Metaphern + Züge "
+            "+ Translator + Baseline + Durchläufe) Aufrufe pro Problem. Klein "
+            "anfangen."
+        ),
+        "No current problem — run the Definer first, or pick another source.": (
+            "Kein aktuelles Problem — erst den Definer laufen lassen oder andere "
+            "Quelle wählen."
+        ),
+        "No problems to evaluate.": "Keine Probleme zum Evaluieren.",
+        "Starting…": "Starte…",
+        "Evaluating {label} ({done}/{total})…": (
+            "Evaluiere {label} ({done}/{total})…"
+        ),
+        "Done": "Fertig",
+        "⚠️ Evaluation failed: `{err}`": "⚠️ Evaluation fehlgeschlagen: `{err}`",
+        "No successful evaluations — check the model / API key.": (
+            "Keine erfolgreichen Evaluationen — Modell / API-Key prüfen."
+        ),
+        "Win-rate (Metaphor)": "Win-Rate (Metapher)",
+        "Judge passes": "Judge-Durchläufe",
+        "M / B / T": "M / B / U",
+        "Overall winner distribution": "Gesamt-Siegerverteilung",
+        "Count": "Anzahl",
+        "Per-criterion winners": "Sieger pro Kriterium",
+        "Per problem": "Pro Problem",
+        "Problem": "Problem",
+        "Domain": "Domäne",
+        "Metaphor Machine answer": "Metaphor-Machine-Antwort",
+        "Baseline answer": "Baseline-Antwort",
+        "Tie": "Unentschieden",
         "⚠️ Judge failed: `{err}`": "⚠️ Judge-Fehler: `{err}`",
         # --- Structure panel ---
         "Problem structure": "Problemstruktur",
@@ -437,6 +529,10 @@ if "baseline_text" not in st.session_state:
     st.session_state.baseline_text = None
 if "judge_result" not in st.session_state:
     st.session_state.judge_result = None
+if "app_mode" not in st.session_state:
+    st.session_state.app_mode = "Interactive"
+if "eval_report" not in st.session_state:
+    st.session_state.eval_report = None
 if "editing_problem" not in st.session_state:
     st.session_state.editing_problem = False
 if "saved_path" not in st.session_state:
@@ -486,6 +582,25 @@ LANG = st.session_state.language  # convenience alias for translators below
 
 with st.sidebar:
     st.title("🎭 Metaphor Machine")
+
+    # ---- Mode switch: interactive pipeline vs. batch evaluation ----
+    _mode_labels = {
+        "Interactive": t("🎭 Interactive", LANG),
+        "Evaluation": t("📊 Evaluation", LANG),
+    }
+    _mode_keys = list(_mode_labels)
+    picked_mode_label = st.radio(
+        t("Mode", LANG),
+        options=[_mode_labels[k] for k in _mode_keys],
+        index=_mode_keys.index(st.session_state.app_mode),
+        horizontal=True,
+        key="mode_radio",
+    )
+    new_mode = _mode_keys[[_mode_labels[k] for k in _mode_keys].index(picked_mode_label)]
+    if new_mode != st.session_state.app_mode:
+        st.session_state.app_mode = new_mode
+        st.rerun()
+    st.divider()
 
     # Detect every provider supported in .env.example. Order matters only for
     # the success message - any one of these is enough to run the pipeline.
@@ -808,8 +923,238 @@ with st.sidebar:
 
 
 # ---------------------------------------------------------------------------
+# Evaluation mode (batch LLM-as-Judge with charts + tables)
+# ---------------------------------------------------------------------------
+
+_BUILTIN_PROBLEMS_FILE = (
+    Path(__file__).resolve().parent.parent / "tests" / "fixtures" / "problems.yaml"
+)
+
+
+def _load_builtin_problems() -> list[dict]:
+    try:
+        import yaml
+
+        data = yaml.safe_load(_BUILTIN_PROBLEMS_FILE.read_text())
+        return data.get("problems", [])
+    except Exception:
+        return []
+
+
+def _winner_label(side: str) -> str:
+    return {
+        "metaphor": t("Metaphor", LANG),
+        "baseline": t("Baseline", LANG),
+        "tie": t("Tie", LANG),
+    }.get(side, side)
+
+
+def render_eval_report(report: dict) -> None:
+    """Charts + tables for a finished batch evaluation."""
+    import pandas as pd
+
+    overall = report["overall"]
+    if overall["n"] == 0:
+        st.warning(t("No successful evaluations — check the model / API key.", LANG))
+        return
+
+    c = overall["counts"]
+    m1, m2, m3 = st.columns(3)
+    m1.metric(t("Win-rate (Metaphor)", LANG), f"{overall['win_rate']:.0%}")
+    m2.metric(t("Judge passes", LANG), str(overall["n"]))
+    m3.metric(
+        t("M / B / T", LANG), f"{c['metaphor']} / {c['baseline']} / {c['tie']}"
+    )
+
+    # Overall winner distribution
+    st.markdown(f"**{t('Overall winner distribution', LANG)}**")
+    dist = pd.DataFrame(
+        {t("Count", LANG): [c["metaphor"], c["baseline"], c["tie"]]},
+        index=[t("Metaphor", LANG), t("Baseline", LANG), t("Tie", LANG)],
+    )
+    st.bar_chart(dist)
+
+    # Per-criterion breakdown (stacked)
+    if overall["per_criterion"]:
+        st.markdown(f"**{t('Per-criterion winners', LANG)}**")
+        rows = {}
+        for crit, cc in overall["per_criterion"].items():
+            rows[crit] = {
+                t("Metaphor", LANG): cc["metaphor"],
+                t("Baseline", LANG): cc["baseline"],
+                t("Tie", LANG): cc["tie"],
+            }
+        crit_df = pd.DataFrame(rows).T
+        try:
+            st.bar_chart(crit_df, stack=True)
+        except TypeError:  # older Streamlit without stack=
+            st.bar_chart(crit_df)
+
+    # Per-problem table
+    st.markdown(f"**{t('Per problem', LANG)}**")
+    table_rows = []
+    for pp in report["per_problem"]:
+        if "error" in pp:
+            table_rows.append(
+                {t("Problem", LANG): pp["id"], t("Win-rate (Metaphor)", LANG): None,
+                 t("Domain", LANG): "ERROR", "M": 0, "B": 0, "Tie": 0}
+            )
+            continue
+        s = pp["summary"]
+        table_rows.append({
+            t("Problem", LANG): pp["id"],
+            t("Win-rate (Metaphor)", LANG): round(s["win_rate"], 3),
+            t("Domain", LANG): pp.get("domain", ""),
+            "M": s["counts"]["metaphor"],
+            "B": s["counts"]["baseline"],
+            "Tie": s["counts"]["tie"],
+        })
+    st.dataframe(pd.DataFrame(table_rows), use_container_width=True, hide_index=True)
+
+    # Drill-down per problem
+    for pp in report["per_problem"]:
+        if "error" in pp:
+            continue
+        with st.expander(f"🔎 {pp['id']} — {pp.get('domain', '')}"):
+            st.caption(pp.get("problem_summary", ""))
+            ca, cb = st.columns(2)
+            with ca:
+                st.markdown(f"**{t('Metaphor Machine answer', LANG)}**")
+                st.markdown(pp["metaphor_answer"])
+            with cb:
+                st.markdown(f"**{t('Baseline answer', LANG)}**")
+                st.markdown(pp["baseline"])
+            st.markdown(f"**{t('Per run', LANG)}**")
+            for i, r in enumerate(pp["results"], 1):
+                st.markdown(
+                    t("Run {i}: **{winner}** (shown {order})", LANG).format(
+                        i=i, winner=_winner_label(r.winner), order=r.order
+                    )
+                )
+            first_reason = next((r.reasoning for r in pp["results"] if r.reasoning), "")
+            if first_reason:
+                st.markdown(f"> {first_reason}")
+
+
+def render_evaluation_page() -> None:
+    pl = st.session_state.pipeline
+    st.header(t("📊 Evaluation — Metaphor Machine vs. Baseline", LANG))
+    st.caption(
+        t(
+            "Runs the full pipeline on one or more problems, then has the "
+            "LLM-as-Judge compare the metaphor answer against the no-metaphor "
+            "baseline several times (blind, randomised order). The headline "
+            "number is the win-rate.",
+            LANG,
+        )
+    )
+
+    model_label = t("mock fixtures", LANG) if mock_enabled() else pl.model
+    st.info(t("Model (pick in the sidebar): **{model}**", LANG).format(model=model_label))
+
+    with st.form("eval_form"):
+        source = st.radio(
+            t("Problems to evaluate", LANG),
+            options=["builtin", "current", "custom"],
+            format_func=lambda k: {
+                "builtin": t("Built-in problem set", LANG),
+                "current": t("Current session problem", LANG),
+                "custom": t("Custom (one per line)", LANG),
+            }[k],
+            horizontal=True,
+        )
+        custom_text = st.text_area(
+            t("Custom problems — one per line", LANG),
+            value="",
+            placeholder=t("Describe a problem…", LANG),
+            height=100,
+        )
+        col_a, col_b, col_c = st.columns(3)
+        runs = col_a.number_input(
+            t("Judge runs / problem", LANG), min_value=1, max_value=15, value=5, step=1,
+            help=t(
+                "How many times to judge each problem. Each run reshuffles the "
+                "blind A/B order; more runs = a more robust, less position-biased "
+                "win-rate.", LANG),
+        )
+        metaphors = col_b.number_input(
+            t("Metaphors / problem", LANG), min_value=1, max_value=4, value=3, step=1
+        )
+        moves = col_c.number_input(
+            t("Explorer moves", LANG), min_value=1, max_value=5, value=2, step=1
+        )
+        submitted = st.form_submit_button(
+            t("▶️ Run evaluation", LANG), type="primary", use_container_width=True
+        )
+
+    if not mock_enabled():
+        st.caption(
+            t(
+                "⚠️ This makes real LLM calls — roughly (definer + metaphors + "
+                "moves + translator + baseline + runs) calls per problem. Start "
+                "small.", LANG)
+        )
+
+    if submitted:
+        # Assemble the problem list
+        if source == "builtin":
+            problems = _load_builtin_problems()
+        elif source == "current":
+            if pl.session.problem is None:
+                st.error(t("No current problem — run the Definer first, or pick "
+                           "another source.", LANG))
+                problems = []
+            else:
+                problems = [{"id": "current", "user_text": pl.session.problem.raw_user_text}]
+        else:
+            lines = [ln.strip() for ln in custom_text.splitlines() if ln.strip()]
+            problems = [{"id": f"custom_{i+1}", "user_text": ln} for i, ln in enumerate(lines)]
+
+        if not problems:
+            st.warning(t("No problems to evaluate.", LANG))
+        else:
+            bar = st.progress(0.0, text=t("Starting…", LANG))
+
+            def _progress(done, total, label):
+                frac = done / total if total else 1.0
+                bar.progress(
+                    min(1.0, frac),
+                    text=t("Evaluating {label} ({done}/{total})…", LANG).format(
+                        label=label, done=min(done + 1, total), total=total
+                    ) if label != "done" else t("Done", LANG),
+                )
+
+            try:
+                report = run_evaluation(
+                    problems,
+                    model=None if mock_enabled() else pl.model,
+                    language=st.session_state.language,
+                    n_metaphors=int(metaphors),
+                    moves=int(moves),
+                    runs=int(runs),
+                    progress=_progress,
+                )
+                st.session_state.eval_report = report
+            except Exception as e:
+                st.error(
+                    t("⚠️ Evaluation failed: `{err}`", LANG).format(
+                        err=f"{type(e).__name__}: {e}"
+                    )
+                )
+            bar.empty()
+
+    if st.session_state.eval_report is not None:
+        st.divider()
+        render_eval_report(st.session_state.eval_report)
+
+
+# ---------------------------------------------------------------------------
 # Layout
 # ---------------------------------------------------------------------------
+
+if st.session_state.app_mode == "Evaluation":
+    render_evaluation_page()
+    st.stop()
 
 chat_col, structure_col = st.columns([4, 4])
 

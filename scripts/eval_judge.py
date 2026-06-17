@@ -1,31 +1,27 @@
 #!/usr/bin/env python
 """Batch evaluation: how often does the metaphor pipeline beat the baseline?
 
-This turns the LLM-as-Judge (agents/judge.py) into the single number the poster
-reviewers asked for: a **win-rate**. For each seed problem we run the full
-pipeline (Definer → Transformer → Explorer → Translator), generate the direct
-baseline, and have the judge compare them blind. Aggregated:
+Turns the LLM-as-Judge into the single number the poster reviewers asked for: a
+**win-rate**. For each problem we run the full pipeline (Definer → Transformer →
+Explorer → Translator), generate the direct baseline, and have the judge compare
+them blind — ``--runs`` times per problem, each run reshuffling the A/B order to
+control position bias. Aggregated:
 
     win-rate = (metaphor wins + 0.5 * ties) / N
+
+The actual work lives in ``metaphor_machine.evaluation`` so the Streamlit
+Evaluation mode and this CLI stay in sync.
 
 Usage
 -----
     # smoke test, no API key, no real calls:
     METAPHOR_MOCK=1 python scripts/eval_judge.py
 
-    # real run on the built-in problem set:
-    python scripts/eval_judge.py --moves 3
+    # real run, 5 judge passes per problem, pick the model:
+    python scripts/eval_judge.py --runs 5 --model anthropic/claude-sonnet-4-6
 
     # your own problems file (same shape as tests/fixtures/problems.yaml):
     python scripts/eval_judge.py --problems my_problems.yaml
-
-Notes
------
-* Position bias is controlled inside the judge (randomised A/B per call). We
-  pass a per-problem seed so a run is reproducible.
-* Ties count as half a win — standard for pairwise preference evaluation.
-* This is intentionally a thin script, not a test: it makes real LLM calls and
-  costs money/time. Keep it out of the pytest path.
 """
 
 from __future__ import annotations
@@ -41,7 +37,7 @@ _SRC = Path(__file__).resolve().parent.parent / "src"
 if _SRC.exists() and str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from metaphor_machine.core.pipeline import Pipeline  # noqa: E402
+from metaphor_machine.evaluation import run_evaluation  # noqa: E402
 
 _DEFAULT_PROBLEMS = (
     Path(__file__).resolve().parent.parent / "tests" / "fixtures" / "problems.yaml"
@@ -53,30 +49,14 @@ def load_problems(path: Path) -> list[dict]:
     return data.get("problems", [])
 
 
-def evaluate_one(problem_text: str, *, n_metaphors: int, moves: int, seed: int) -> dict:
-    """Run the whole pipeline for one problem and judge it against baseline."""
-    pipe = Pipeline()
-    pipe.run_definer(problem_text)
-    candidates = pipe.run_transformer(n=n_metaphors)
-    # Curate automatically: take the first candidate (a human would choose here).
-    pipe.session.chosen_metaphor = candidates[0]
-    for _ in range(moves):
-        pipe.run_explorer_turn()
-    pipe.run_translator()
-    result = pipe.run_judge(seed=seed)
-    return {
-        "winner": result.winner,
-        "order": result.order,
-        "criteria": result.criteria_winners,
-        "reasoning": result.reasoning,
-    }
-
-
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--problems", type=Path, default=_DEFAULT_PROBLEMS)
     ap.add_argument("--metaphors", type=int, default=3, help="candidates per problem")
     ap.add_argument("--moves", type=int, default=3, help="explorer moves per problem")
+    ap.add_argument("--runs", type=int, default=3, help="judge passes per problem")
+    ap.add_argument("--model", default=None, help="LiteLLM model string (else default)")
+    ap.add_argument("--language", default=None, help="en | de")
     args = ap.parse_args()
 
     problems = load_problems(args.problems)
@@ -84,47 +64,55 @@ def main() -> int:
         print(f"No problems found in {args.problems}", file=sys.stderr)
         return 1
 
-    print(f"Evaluating {len(problems)} problem(s) "
-          f"(metaphors={args.metaphors}, moves={args.moves})\n")
+    print(
+        f"Evaluating {len(problems)} problem(s) "
+        f"(metaphors={args.metaphors}, moves={args.moves}, runs={args.runs}, "
+        f"model={args.model or 'default'})\n"
+    )
 
-    counts = {"metaphor": 0, "baseline": 0, "tie": 0}
-    per_criterion: dict[str, dict[str, int]] = {}
+    def _progress(done: int, total: int, label: str) -> None:
+        if label != "done":
+            print(f"  [{done + 1}/{total}] {label} …")
 
-    for i, p in enumerate(problems):
-        text = p.get("user_text", "")
-        pid = p.get("id", f"problem_{i}")
-        try:
-            res = evaluate_one(
-                text, n_metaphors=args.metaphors, moves=args.moves, seed=i
-            )
-        except Exception as exc:  # keep going — one bad problem shouldn't sink the run
-            print(f"  [{pid}] ERROR: {exc}")
+    report = run_evaluation(
+        problems,
+        model=args.model,
+        language=args.language,
+        n_metaphors=args.metaphors,
+        moves=args.moves,
+        runs=args.runs,
+        progress=_progress,
+    )
+
+    print("\n  Per problem:")
+    for pp in report["per_problem"]:
+        if "error" in pp:
+            print(f"    {pp['id']:<24} ERROR: {pp['error']}")
             continue
-        counts[res["winner"]] = counts.get(res["winner"], 0) + 1
-        for crit, side in res["criteria"].items():
-            per_criterion.setdefault(crit, {"metaphor": 0, "baseline": 0, "tie": 0})
-            per_criterion[crit][side] = per_criterion[crit].get(side, 0) + 1
-        print(f"  [{pid}] winner={res['winner']:<8} (shown {res['order']})")
+        s = pp["summary"]
+        print(
+            f"    {pp['id']:<24} win-rate {s['win_rate']:.0%}  "
+            f"(M {s['counts']['metaphor']} / B {s['counts']['baseline']} / "
+            f"T {s['counts']['tie']})  [{pp['domain']}]"
+        )
 
-    n = sum(counts.values())
-    if n == 0:
+    o = report["overall"]
+    if o["n"] == 0:
         print("\nNo successful evaluations.", file=sys.stderr)
         return 1
 
-    win_rate = (counts["metaphor"] + 0.5 * counts["tie"]) / n
+    print("\n" + "=" * 52)
+    print("OVERALL")
+    print("=" * 52)
+    print(f"  metaphor wins : {o['counts']['metaphor']}")
+    print(f"  baseline wins : {o['counts']['baseline']}")
+    print(f"  ties          : {o['counts']['tie']}")
+    print(f"  judge passes  : {o['n']}")
+    print(f"\n  WIN-RATE (metaphor, ties=0.5): {o['win_rate']:.0%}")
 
-    print("\n" + "=" * 48)
-    print("RESULTS")
-    print("=" * 48)
-    print(f"  metaphor wins : {counts['metaphor']}")
-    print(f"  baseline wins : {counts['baseline']}")
-    print(f"  ties          : {counts['tie']}")
-    print(f"  N             : {n}")
-    print(f"\n  WIN-RATE (metaphor, ties=0.5): {win_rate:.0%}")
-
-    if per_criterion:
+    if o["per_criterion"]:
         print("\n  Per-criterion (metaphor / baseline / tie):")
-        for crit, c in per_criterion.items():
+        for crit, c in o["per_criterion"].items():
             print(f"    {crit:<14} {c['metaphor']} / {c['baseline']} / {c['tie']}")
 
     return 0

@@ -27,6 +27,7 @@ The judge runs at temperature 0.0 for repeatability.
 from __future__ import annotations
 
 import random
+import re
 
 from ..core.schemas import (
     JUDGE_CRITERIA,
@@ -36,6 +37,30 @@ from ..core.schemas import (
 )
 from ..llm import LLMConfig
 from .base import Agent
+
+
+def summarize_runs(results: list[ComparisonResult]) -> dict:
+    """Aggregate repeated judge runs into counts + a win-rate.
+
+    win_rate counts ties as half a win (standard for pairwise preference
+    evaluation). Also rolls up the per-criterion winners across all runs.
+    """
+    counts = {"metaphor": 0, "baseline": 0, "tie": 0}
+    per_criterion: dict[str, dict[str, int]] = {}
+    for r in results:
+        counts[r.winner] = counts.get(r.winner, 0) + 1
+        for crit, side in r.criteria_winners.items():
+            per_criterion.setdefault(crit, {"metaphor": 0, "baseline": 0, "tie": 0})
+            per_criterion[crit][side] = per_criterion[crit].get(side, 0) + 1
+    n = len(results) or 1
+    win_rate = (counts["metaphor"] + 0.5 * counts["tie"]) / n
+    return {
+        "n": len(results),
+        "counts": counts,
+        "win_rate": win_rate,
+        "per_criterion": per_criterion,
+    }
+
 
 SYSTEM_PROMPT = """\
 You are an impartial JUDGE. You are given a PROBLEM and two candidate answers,
@@ -170,6 +195,32 @@ class JudgeAgent(Agent):
         return ComparisonResult(
             winner=label(verdict.winner),
             criteria_winners=criteria_winners,
-            reasoning=verdict.reasoning,
+            reasoning=JudgeAgent._relabel(verdict.reasoning, metaphor_first),
             order="metaphor_first" if metaphor_first else "baseline_first",
         )
+
+    @staticmethod
+    def _relabel(text: str, metaphor_first: bool) -> str:
+        """Rewrite the judge's blind 'Answer A/B' references in free text.
+
+        The judge writes its reasoning in terms of the anonymised labels A/B,
+        which are meaningless (and confusing) to the user once we reveal the
+        winner. Replace them with the real side so the explanation reads
+        naturally — 'A is more concrete' -> 'the Metaphor Machine answer is
+        more concrete'. Handles English 'Answer A' and German 'Antwort A' plus
+        bare A/B tokens, in both label orderings.
+        """
+        if not text:
+            return text
+        a_label = "the Metaphor Machine answer" if metaphor_first else "the baseline answer"
+        b_label = "the baseline answer" if metaphor_first else "the Metaphor Machine answer"
+
+        # Two-word forms first so we don't leave a dangling "Answer".
+        text = re.sub(r"\b[Aa]nswer\s+A\b", a_label, text)
+        text = re.sub(r"\b[Aa]ntwort\s+A\b", a_label, text)
+        text = re.sub(r"\b[Aa]nswer\s+B\b", b_label, text)
+        text = re.sub(r"\b[Aa]ntwort\s+B\b", b_label, text)
+        # Bare single-letter references (case-sensitive: only uppercase A/B).
+        text = re.sub(r"\bA\b", a_label, text)
+        text = re.sub(r"\bB\b", b_label, text)
+        return text
