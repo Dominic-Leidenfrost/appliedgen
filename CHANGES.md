@@ -41,6 +41,21 @@ This helps in a few ways:
 
 This does not make the evaluation fully objective, but it is much better than only saying that the answers "look interesting".
 
+## Letting users correct the Definer output
+
+Several reviewers asked whether the Definer's output can be corrected. The Definer reads the raw problem and turns it into a structure (entities, relations, constraints, goals, tensions). Sometimes it misreads something, or maps a relation differently than the user meant.
+
+This matters a lot, because the metaphor is built from that structure. If the structure is wrong, everything after it is wrong too.
+
+So we added an edit step:
+
+- after the Definer runs, the user can open an editor in the app,
+- entities and relations are editable in a small table,
+- summary, constraints, goals, tensions and unknowns are editable as text,
+- saving replaces the structure and re-runs from the corrected version.
+
+If the problem is edited after metaphors were already generated, we clear the old metaphors, moves and solutions, so two different problem definitions can never get mixed together.
+
 ## What we did not add
 
 ### We did not add other languages, TTS, queues, or scalability work

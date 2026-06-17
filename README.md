@@ -63,7 +63,8 @@ python -m metaphor_machine.cli "I have a small team and too many priorities."
 │   └── ...
 ├── data/runs/                    # session transcripts (gitignored)
 ├── tests/
-├── PLAN.md                       # detailed implementation plan & roadmap
+├── scripts/eval_judge.py         # batch LLM-as-judge evaluation (win-rate)
+├── CHANGES.md                    # feedback from the poster session + our response
 ├── pyproject.toml
 └── README.md
 ```
@@ -85,7 +86,11 @@ All configuration is done through environment variables (or the in-app sidebar).
 | `METAPHOR_DEFAULT_TEMPERATURE` | `0.7` | Higher for exploration, lower for extraction |
 | `METAPHOR_DATA_DIR` | `./data/runs` | Where session markdown files are written |
 
-The UI sidebar can override the model and temperature per agent (useful for the "low temp for extraction, high temp for exploration" pattern described in `PLAN.md`).
+The UI sidebar can override the model and temperature per agent (useful for the "low temp for extraction, high temp for exploration" pattern: the Definer extracts structure at a low temperature, the Transformer invents metaphors at a high one).
+
+### Evaluation (LLM-as-judge)
+
+To check whether the metaphor pipeline actually beats a plain LLM answer, switch the sidebar to **Evaluation** mode (or run `python scripts/eval_judge.py --runs 5`). It runs the full pipeline, then a blind judge compares the metaphor answer against a no-metaphor baseline several times and reports a win-rate. See `CHANGES.md` for the rationale.
 
 ---
 
