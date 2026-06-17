@@ -1,0 +1,17 @@
+# German words the Explorer agent is not allowed to use.
+# Editing this file is a no-code way to fight generic-advice collapse.
+# See PLAN.md §4.1.
+forbidden:
+  - zusammenarbeiten
+  - kommunizieren
+  - abstimmen
+  - synergie
+  - synergien
+  - stakeholder
+  - best practice
+  - einen weg finden
+  - miteinander arbeiten
+  - auf augenhoehe
+  - den dialog suchen
+  - die richtige balance finden
+  - ganzheitlich

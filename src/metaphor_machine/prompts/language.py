@@ -1,10 +1,10 @@
-"""Language management — German / English toggle.
+"""Language management: German / English toggle.
 
 Why this module exists: every agent's output text (summary, entity names,
 metaphor descriptions, move narration, solution translations) should be in
-the user's chosen language. The Pydantic FIELD NAMES stay English (they're
-the JSON schema and must match Pydantic's expectations), but every VALUE
-inside those fields gets generated in the chosen language.
+the user's chosen language. The Pydantic field names stay English because
+they are part of the JSON schema, but every value inside those fields gets
+generated in the chosen language.
 
 Persistence: like the model choice, the language preference survives page
 reloads via data/cache/active_language.txt.
@@ -13,35 +13,43 @@ reloads via data/cache/active_language.txt.
 from __future__ import annotations
 
 import os
+from functools import lru_cache
 from pathlib import Path
 from typing import Literal
+
+import yaml
 
 Language = Literal["en", "de"]
 DEFAULT_LANGUAGE: Language = "en"
 
-# Forbidden phrases per language. The Explorer regenerates if any of these
-# appear in its output. English list is the original; German list targets
-# the equivalent Beratergeschwurbel.
+_PROMPTS_DIR = Path(__file__).resolve().parent
+_FORBIDDEN_WORDS_FILES: dict[Language, Path] = {
+    "en": _PROMPTS_DIR / "forbidden_words.yaml",
+    "de": _PROMPTS_DIR / "forbidden_words_de.yaml",
+}
+
+
+@lru_cache(maxsize=2)
+def load_forbidden_words(lang: Language) -> list[str]:
+    """Load the forbidden phrases for one language from YAML."""
+    path = _FORBIDDEN_WORDS_FILES[lang]
+    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    words = data.get("forbidden", [])
+    if not isinstance(words, list):
+        raise ValueError(f"Invalid forbidden words file: {path}")
+    return [str(word) for word in words]
+
+
+# Backward-compatible mapping for existing callers/tests.
 FORBIDDEN_WORDS: dict[Language, list[str]] = {
-    "en": [
-        "collaborate", "communicate", "align", "synergy", "leverage",
-        "stakeholder", "best practice", "find a way", "work together",
-        "reach out", "circle back", "touch base", "move the needle",
-        "low-hanging fruit",
-    ],
-    "de": [
-        "zusammenarbeiten", "kommunizieren", "abstimmen", "synergie",
-        "synergien", "stakeholder", "best practice", "einen weg finden",
-        "miteinander arbeiten", "auf augenhöhe", "den dialog suchen",
-        "die richtige balance finden", "ganzheitlich",
-    ],
+    lang: load_forbidden_words(lang) for lang in ("en", "de")
 }
 
 
 def language_instruction(lang: Language) -> str:
-    """Returns the system-prompt suffix that pins the output language.
+    """Return the system-prompt suffix that pins the output language.
 
-    Schema field NAMES stay English (Pydantic), only VALUES translate.
+    Schema field names stay English. Only values translate.
     """
     if lang == "de":
         return (
@@ -50,12 +58,10 @@ def language_instruction(lang: Language) -> str:
             "caveats, etc.) must be in GERMAN. Field NAMES stay English. "
             "Example: {\"summary\": \"Kleines Team mit zu vielen Projekten\", "
             "\"entities\": [{\"name\": \"engineer\", \"attributes\": "
-            "[\"überlastet\"]}]} — note 'summary'/'name'/'attributes' stay "
+            "[\"ueberlastet\"]}]} - note 'summary'/'name'/'attributes' stay "
             "English but their values are German."
         )
-    return (
-        "LANGUAGE: All text values in your JSON output must be in ENGLISH."
-    )
+    return "LANGUAGE: All text values in your JSON output must be in ENGLISH."
 
 
 # ---------------------------------------------------------------------------
