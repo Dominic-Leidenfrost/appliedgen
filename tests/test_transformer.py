@@ -44,6 +44,30 @@ def test_domain_seed_as_style_hint_contains_name():
     assert seeds[0].display in hint
 
 
+def test_all_shipped_domains_produce_style_hint_without_error():
+    """Regression: a non-string vocabulary/relation entry (e.g. YAML parsing
+    `86` as an int in kitchen.yaml) used to crash str.join and fail the whole
+    Transformer run. Every shipped seed must render a hint."""
+    for seed in load_all():
+        hint = seed.as_style_hint()
+        assert isinstance(hint, str) and hint
+
+
+def test_as_style_hint_coerces_non_string_items():
+    from metaphor_machine.prompts.domains import DomainSeed
+
+    seed = DomainSeed(
+        name="x",
+        display="X",
+        description="d",
+        vocabulary=["a", 86, "b"],  # int on purpose
+        archetypal_entities={},
+        typical_relations=["r", 7],  # int on purpose
+    )
+    hint = seed.as_style_hint()
+    assert "86" in hint and "7" in hint
+
+
 # ---------------------------------------------------------------------------
 # Forbidden words
 # ---------------------------------------------------------------------------

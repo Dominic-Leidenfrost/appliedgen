@@ -27,13 +27,21 @@ class DomainSeed:
     typical_relations: list[str]
 
     def as_style_hint(self) -> str:
-        """Build a concise style-hint string for the Transformer prompt."""
-        vocab_preview = ", ".join(self.vocabulary[:8])
+        """Build a concise style-hint string for the Transformer prompt.
+
+        Coerces vocabulary / relation items to str: YAML silently parses bare
+        tokens like ``86`` (kitchen slang for "out of stock") as ints, and a
+        single non-string entry would otherwise crash ``str.join`` and fail the
+        whole Transformer run. Seed data should never break the pipeline, so we
+        normalise defensively here.
+        """
+        vocab_preview = ", ".join(str(v) for v in self.vocabulary[:8])
+        relations_preview = "; ".join(str(r) for r in self.typical_relations[:3])
         return (
             f"Domain: {self.display}\n"
             f"Setting: {self.description.strip()}\n"
             f"Vocabulary: {vocab_preview}\n"
-            f"Typical relations: {'; '.join(self.typical_relations[:3])}"
+            f"Typical relations: {relations_preview}"
         )
 
 
