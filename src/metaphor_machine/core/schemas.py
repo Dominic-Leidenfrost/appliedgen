@@ -1,7 +1,6 @@
 """Pydantic schemas shared by all agents.
 
 These are the *contracts* between agents. Treat changes here as breaking.
-See PLAN.md §3 for the design rationale.
 """
 
 from __future__ import annotations

@@ -7,10 +7,6 @@ can:
   - steer the next move with an optional directive ("focus on the quiet ones")
   - demand a structurally different strategy (force_different=True)
   - undo the last move (handled in the Pipeline / UI, not here)
-
-See the assignment text and PLAN.md §2 — the system explores, the user makes
-choices. Earlier implementation had this inverted, which exhausted users and
-defeated the purpose.
 """
 
 from __future__ import annotations

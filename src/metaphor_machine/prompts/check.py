@@ -1,7 +1,5 @@
 """Forbidden-word enforcement for agent outputs.
 
-See PLAN.md §4.1. Used by ExplorerAgent (Sprint 3) and Transformer validation.
-
 The list is language-aware: when language='de', we check the German
 weasel-word list instead of the English one. Backward-compatible callers
 that don't pass a language fall through to the union of both lists (catches

@@ -1,6 +1,5 @@
 """Persist sessions as markdown (for humans) + JSON sidecar (for replay).
 
-See PLAN.md — answer to "Wie wird das gespeichert?".
 One folder per run: data/runs/<timestamp>-<slug>/
   problem.md / problem.json
   metaphors.md / metaphors.json

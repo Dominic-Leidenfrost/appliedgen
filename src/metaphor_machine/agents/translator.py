@@ -1,8 +1,8 @@
 """Translator agent — maps metaphor-space ideas back to the original domain.
 
-Sprint 3 implementation. Outputs one Solution per Move, each with caveats
+Outputs one Solution per Move, each with caveats
 derived from the mapping leaks. Optionally generates a baseline LLM answer
-for comparison (see PLAN.md — answer to the Excalidraw baseline question).
+for comparison.
 """
 
 from __future__ import annotations

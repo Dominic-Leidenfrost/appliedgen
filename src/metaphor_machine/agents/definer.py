@@ -1,6 +1,6 @@
 """Definer agent - extracts a ProblemSpec from the user's raw description.
 
-Sprint 1 implementation. Uses LLMClient.structured() with a tight system
+Uses LLMClient.structured() with a tight system
 prompt that forbids solution-suggesting and forces specificity.
 """
 

@@ -1,7 +1,7 @@
 """Orchestrator that wires the four agents together.
 
 This is intentionally thin: agents are stateless, the pipeline owns the session
-state and decides what runs when. See PLAN.md §2 for the architecture diagram.
+state and decides what runs when.
 """
 
 from __future__ import annotations

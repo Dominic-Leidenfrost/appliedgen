@@ -1,8 +1,7 @@
 """Transformer agent — maps ProblemSpec onto a metaphor domain.
 
-Sprint 2 implementation. Three instances run in parallel (see Pipeline)
+Three instances run in parallel (see Pipeline)
 each seeded with a different domain hint from examples/domains/*.yaml.
-See PLAN.md §4.3.
 """
 
 from __future__ import annotations
