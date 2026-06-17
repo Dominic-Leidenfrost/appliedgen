@@ -74,3 +74,7 @@ That is much harder to build, and was out of scope for this step.
 Based on the feedback, we added a judge to compare our metaphor-based answer against a normal baseline answer in a more structured and fair way.
 
 This gives us a practical evaluation method, even if it is not a perfect objective benchmark.
+
+## Our interpretation of the evaluation judge
+
+We ran our evaluation with very limited resources, and in these runs the LLM judge mostly preferred the baseline answer. This suggests that we could still improve the judge setup to make it more neutral. At the same time, judging solutions to open-ended problems is naturally very subjective. We also think the judge may be biased toward the normal baseline answer, because that style is closer to the kind of answer LLMs are usually trained to produce and may therefore look more "correct" to the judge.
