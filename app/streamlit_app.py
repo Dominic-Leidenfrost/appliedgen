@@ -199,6 +199,31 @@ I18N: dict[str, dict[str, str]] = {
         # --- Structure panel ---
         "Problem structure": "Problemstruktur",
         "Summary:": "Zusammenfassung:",
+        # --- Definer edit / correct ---
+        "✏️ Edit / correct": "✏️ Bearbeiten / korrigieren",
+        "Correct anything the Definer got wrong, then Save. The corrected "
+        "structure is what the metaphor is built from — fixing it here matters "
+        "more than anywhere else.": (
+            "Korrigiere alles, was der Definer falsch erfasst hat, dann "
+            "Speichern. Die korrigierte Struktur ist die Basis für die "
+            "Metapher — Korrekturen hier wirken stärker als anderswo."
+        ),
+        "Entities": "Entitäten",
+        "Relations": "Relationen",
+        "Tensions (one per line)": "Spannungen (eine pro Zeile)",
+        "Constraints (one per line)": "Einschränkungen (eine pro Zeile)",
+        "Goals (one per line)": "Ziele (eine pro Zeile)",
+        "Unknowns (one per line)": "Unbekannte (eine pro Zeile)",
+        "💾 Save corrections": "💾 Korrekturen speichern",
+        "Cancel": "Abbrechen",
+        "✅ Problem updated. Downstream metaphors/moves were cleared.": (
+            "✅ Problem aktualisiert. Nachgelagerte Metaphern/Züge wurden "
+            "zurückgesetzt."
+        ),
+        "✅ Problem updated.": "✅ Problem aktualisiert.",
+        "⚠️ Could not save edits: `{err}`": (
+            "⚠️ Speichern fehlgeschlagen: `{err}`"
+        ),
         "Entities ({n})": "Entitäten ({n})",
         "Relations ({n})": "Relationen ({n})",
         "Tensions ({n})": "Spannungen ({n})",
@@ -412,6 +437,8 @@ if "baseline_text" not in st.session_state:
     st.session_state.baseline_text = None
 if "judge_result" not in st.session_state:
     st.session_state.judge_result = None
+if "editing_problem" not in st.session_state:
+    st.session_state.editing_problem = False
 if "saved_path" not in st.session_state:
     st.session_state.saved_path = None
 # Language toggle, persisted across reloads via Pipeline.
@@ -704,6 +731,7 @@ with st.sidebar:
         st.session_state.phase = "definer"
         st.session_state.baseline_text = None
         st.session_state.judge_result = None
+        st.session_state.editing_problem = False
         st.session_state.saved_path = None
         st.rerun()
 
@@ -726,6 +754,7 @@ with st.sidebar:
         st.session_state.phase = _phase_for(session)
         st.session_state.baseline_text = None
         st.session_state.judge_result = None
+        st.session_state.editing_problem = False
         st.session_state.saved_path = None
         st.toast(
             t("Loaded session ({source}).", LANG).format(source=source_label),
@@ -856,6 +885,148 @@ def render_problem_panel(problem: ProblemSpec) -> None:
             st.markdown(f"- 🎯 {g}")
     with st.expander(t("Raw JSON", LANG), expanded=False):
         st.json(problem.model_dump())
+
+
+def _rows_to_records(rows) -> list[dict]:
+    """st.data_editor returns a list (list input) or a DataFrame depending on
+    the Streamlit version. Normalise to a list of dict records."""
+    if hasattr(rows, "to_dict"):
+        return rows.to_dict("records")
+    return list(rows)
+
+
+def _lines(text: str) -> list[str]:
+    return [ln.strip() for ln in (text or "").splitlines() if ln.strip()]
+
+
+def render_problem_editor(problem: ProblemSpec) -> None:
+    """Editable view of the Definer's ProblemSpec. Lets the user fix anything
+    the Definer mis-extracted before it feeds the Transformer."""
+    st.caption(
+        t(
+            "Correct anything the Definer got wrong, then Save. The corrected "
+            "structure is what the metaphor is built from — fixing it here "
+            "matters more than anywhere else.",
+            LANG,
+        )
+    )
+
+    new_summary = st.text_area(
+        t("Summary:", LANG), value=problem.summary, key="edit_summary"
+    )
+
+    st.markdown(f"**{t('Entities', LANG)}**")
+    ent_in = [
+        {"name": e.name, "role": e.role, "attributes": ", ".join(e.attributes)}
+        for e in problem.entities
+    ] or [{"name": "", "role": "actor", "attributes": ""}]
+    ent_out = st.data_editor(
+        ent_in, num_rows="dynamic", use_container_width=True, key="edit_entities"
+    )
+
+    st.markdown(f"**{t('Relations', LANG)}**")
+    rel_in = [
+        {"source": r.source, "target": r.target, "kind": r.kind, "strength": r.strength}
+        for r in problem.relations
+    ] or [{"source": "", "target": "", "kind": "", "strength": 0.5}]
+    rel_out = st.data_editor(
+        rel_in, num_rows="dynamic", use_container_width=True, key="edit_relations"
+    )
+
+    new_tensions = st.text_area(
+        t("Tensions (one per line)", LANG),
+        value="\n".join(problem.tensions),
+        key="edit_tensions",
+    )
+    new_constraints = st.text_area(
+        t("Constraints (one per line)", LANG),
+        value="\n".join(problem.constraints),
+        key="edit_constraints",
+    )
+    new_goals = st.text_area(
+        t("Goals (one per line)", LANG),
+        value="\n".join(problem.goals),
+        key="edit_goals",
+    )
+    new_unknowns = st.text_area(
+        t("Unknowns (one per line)", LANG),
+        value="\n".join(problem.unknowns),
+        key="edit_unknowns",
+    )
+
+    col_save, col_cancel = st.columns(2)
+    if col_save.button(
+        t("💾 Save corrections", LANG), type="primary", use_container_width=True
+    ):
+        entities = []
+        for row in _rows_to_records(ent_out):
+            name = (row.get("name") or "").strip()
+            if not name:
+                continue
+            attrs = [a.strip() for a in (row.get("attributes") or "").split(",") if a.strip()]
+            entities.append(
+                {"name": name, "role": (row.get("role") or "actor").strip(), "attributes": attrs}
+            )
+        relations = []
+        for row in _rows_to_records(rel_out):
+            src = (row.get("source") or "").strip()
+            tgt = (row.get("target") or "").strip()
+            if not src or not tgt:
+                continue
+            try:
+                strength = float(row.get("strength", 0.5))
+            except (TypeError, ValueError):
+                strength = 0.5
+            strength = min(1.0, max(0.0, strength))
+            relations.append(
+                {
+                    "source": src,
+                    "target": tgt,
+                    "kind": (row.get("kind") or "").strip(),
+                    "strength": strength,
+                }
+            )
+
+        edited = {
+            "raw_user_text": problem.raw_user_text,
+            "summary": new_summary.strip(),
+            "entities": entities,
+            "relations": relations,
+            "constraints": _lines(new_constraints),
+            "goals": _lines(new_goals),
+            "tensions": _lines(new_tensions),
+            "unknowns": _lines(new_unknowns),
+        }
+        try:
+            had_downstream = bool(
+                st.session_state.pipeline.session.metaphor_candidates
+                or st.session_state.pipeline.session.moves
+            )
+            st.session_state.pipeline.update_problem(edited)
+            st.session_state.editing_problem = False
+            st.session_state.baseline_text = None
+            st.session_state.judge_result = None
+            if had_downstream:
+                st.session_state.phase = "transformer"
+            st.toast(
+                t(
+                    "✅ Problem updated. Downstream metaphors/moves were cleared.",
+                    LANG,
+                )
+                if had_downstream
+                else t("✅ Problem updated.", LANG)
+            )
+            st.rerun()
+        except Exception as e:
+            st.error(
+                t("⚠️ Could not save edits: `{err}`", LANG).format(
+                    err=_format_error(e)
+                )
+            )
+
+    if col_cancel.button(t("Cancel", LANG), use_container_width=True):
+        st.session_state.editing_problem = False
+        st.rerun()
 
 
 def render_metaphor_card(m: MetaphorSpec, idx: int, chosen: bool) -> None:
@@ -1309,9 +1480,20 @@ with structure_col:
 
     elif phase in ("definer", "transformer") and session.problem is not None:
         st.subheader(t("Problem structure", LANG))
-        render_problem_panel(session.problem)
 
-        if session.metaphor_candidates:
+        if st.session_state.editing_problem:
+            render_problem_editor(session.problem)
+        else:
+            render_problem_panel(session.problem)
+            if st.button(
+                t("✏️ Edit / correct", LANG),
+                use_container_width=True,
+                key="start_edit_problem",
+            ):
+                st.session_state.editing_problem = True
+                st.rerun()
+
+        if session.metaphor_candidates and not st.session_state.editing_problem:
             st.divider()
             st.subheader(t("Metaphor worlds", LANG))
             chosen = session.chosen_metaphor

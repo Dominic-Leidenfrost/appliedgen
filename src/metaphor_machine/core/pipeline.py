@@ -212,6 +212,54 @@ class Pipeline:
         self.session.problem = spec
         return spec
 
+    def update_problem(self, problem: ProblemSpec) -> ProblemSpec:
+        """Replace the current ProblemSpec with a user-corrected one.
+
+        The Definer is a best-effort extractor: it can mis-read the problem,
+        miss an entity, or map a relation differently than the user intends.
+        This lets the user fix the structure by hand before it flows into the
+        Transformer — the structure the metaphor is built from, so corrections
+        here matter more than anywhere else.
+
+        Because the problem is the root of everything downstream, any metaphors,
+        moves and solutions already generated from the OLD problem are now stale
+        and would silently mix two different problem definitions. We clear them
+        and let the user regenerate from the corrected structure.
+
+        Re-validates through Pydantic so a malformed edit can't enter the
+        session. Returns the stored spec.
+        """
+        if not isinstance(problem, ProblemSpec):
+            problem = ProblemSpec.model_validate(problem)
+
+        had_downstream = bool(
+            self.session.metaphor_candidates
+            or self.session.moves
+            or self.session.solutions
+        )
+        self.session.problem = problem
+        if had_downstream:
+            log.info(
+                "update_problem: clearing stale downstream "
+                "(metaphors=%d moves=%d solutions=%d)",
+                len(self.session.metaphor_candidates),
+                len(self.session.moves),
+                len(self.session.solutions),
+            )
+            self.session.metaphor_candidates = []
+            self.session.chosen_metaphor = None
+            self.session.moves = []
+            self.session.solutions = []
+            self.last_transformer_errors = []
+
+        log.info(
+            "update_problem done | entities=%d relations=%d tensions=%d "
+            "downstream_cleared=%s",
+            len(problem.entities), len(problem.relations),
+            len(problem.tensions), had_downstream,
+        )
+        return problem
+
     # --- step 2: Transformer (×N parallel) ---
     def run_transformer(self, n: int = 3, free_domains: bool = False) -> list[MetaphorSpec]:
         """Generate ``n`` metaphor candidates via ``n`` parallel Transformer runs.
