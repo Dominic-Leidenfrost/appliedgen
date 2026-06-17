@@ -175,6 +175,27 @@ I18N: dict[str, dict[str, str]] = {
         "← Back to Explorer": "← Zurück zum Explorer",
         "⚠️ Translator failed: `{err}`": "⚠️ Translator-Fehler: `{err}`",
         "⚠️ Baseline failed: `{err}`": "⚠️ Baseline-Fehler: `{err}`",
+        # --- Judge / evaluation ---
+        "⚖️ Compare with LLM-as-Judge": "⚖️ Mit LLM-as-Judge vergleichen",
+        "Judging metaphor answer vs. baseline…": (
+            "Metapher-Antwort wird gegen Baseline bewertet…"
+        ),
+        "⚖️ Judge verdict": "⚖️ Judge-Urteil",
+        "🏆 Winner: **Metaphor Machine**": "🏆 Sieger: **Metaphor Machine**",
+        "🏆 Winner: **Baseline**": "🏆 Sieger: **Baseline**",
+        "🤝 Tie": "🤝 Unentschieden",
+        "Blind pairwise judgement. The judge saw both answers anonymised as A/B "
+        "(order randomised to control position bias) and never knew which was "
+        "which.": (
+            "Blinder Paarvergleich. Der Judge sah beide Antworten anonymisiert "
+            "als A/B (Reihenfolge zufällig, gegen Positions-Bias) und wusste nie, "
+            "welche welche war."
+        ),
+        "Per-criterion": "Pro Kriterium",
+        "metaphor": "Metapher",
+        "baseline": "Baseline",
+        "tie": "Unentschieden",
+        "⚠️ Judge failed: `{err}`": "⚠️ Judge-Fehler: `{err}`",
         # --- Structure panel ---
         "Problem structure": "Problemstruktur",
         "Summary:": "Zusammenfassung:",
@@ -389,6 +410,8 @@ if "phase" not in st.session_state:
     st.session_state.phase = "definer"
 if "baseline_text" not in st.session_state:
     st.session_state.baseline_text = None
+if "judge_result" not in st.session_state:
+    st.session_state.judge_result = None
 if "saved_path" not in st.session_state:
     st.session_state.saved_path = None
 # Language toggle, persisted across reloads via Pipeline.
@@ -680,6 +703,7 @@ with st.sidebar:
         st.session_state.messages = []
         st.session_state.phase = "definer"
         st.session_state.baseline_text = None
+        st.session_state.judge_result = None
         st.session_state.saved_path = None
         st.rerun()
 
@@ -701,6 +725,7 @@ with st.sidebar:
         st.session_state.messages = []
         st.session_state.phase = _phase_for(session)
         st.session_state.baseline_text = None
+        st.session_state.judge_result = None
         st.session_state.saved_path = None
         st.toast(
             t("Loaded session ({source}).", LANG).format(source=source_label),
@@ -898,6 +923,32 @@ def render_solution(sol: Solution, idx: int) -> None:
             with st.expander(t("Caveats", LANG)):
                 for c in sol.caveats:
                     st.markdown(f"- ⚠️ {c}")
+
+
+def render_judge_result(result) -> None:
+    """Render a ComparisonResult: overall winner, per-criterion table, reasoning."""
+    headline = {
+        "metaphor": t("🏆 Winner: **Metaphor Machine**", LANG),
+        "baseline": t("🏆 Winner: **Baseline**", LANG),
+        "tie": t("🤝 Tie", LANG),
+    }.get(result.winner, result.winner)
+
+    with st.expander(t("⚖️ Judge verdict", LANG), expanded=True):
+        st.markdown(f"### {headline}")
+        st.caption(
+            t(
+                "Blind pairwise judgement. The judge saw both answers anonymised "
+                "as A/B (order randomised to control position bias) and never "
+                "knew which was which.",
+                LANG,
+            )
+        )
+        if result.criteria_winners:
+            st.markdown(f"**{t('Per-criterion', LANG)}**")
+            for name, side in result.criteria_winners.items():
+                st.markdown(f"- {name}: **{t(side, LANG)}**")
+        if result.reasoning:
+            st.markdown(f"> {result.reasoning}")
 
 
 # ---------------------------------------------------------------------------
@@ -1214,6 +1265,31 @@ with chat_col:
                     t("📊 Baseline (direct LLM, no metaphor)", LANG), expanded=True
                 ):
                     st.markdown(st.session_state.baseline_text)
+
+            # LLM-as-Judge: blind pairwise comparison (metaphor vs. baseline).
+            if st.session_state.judge_result is None:
+                if st.button(
+                    t("⚖️ Compare with LLM-as-Judge", LANG),
+                    use_container_width=True,
+                ):
+                    with st.spinner(t("Judging metaphor answer vs. baseline…", LANG)):
+                        try:
+                            # Reuse the baseline already shown, if any, so the
+                            # judge grades exactly what the user saw (and we
+                            # save an LLM call).
+                            verdict = pipeline.run_judge(
+                                baseline_text=st.session_state.baseline_text
+                            )
+                            st.session_state.judge_result = verdict
+                            st.rerun()
+                        except Exception as e:
+                            st.error(
+                                t("⚠️ Judge failed: `{err}`", LANG).format(
+                                    err=_format_error(e)
+                                )
+                            )
+            else:
+                render_judge_result(st.session_state.judge_result)
 
             if st.button(t("← Back to Explorer", LANG), use_container_width=True):
                 st.session_state.phase = "explorer"

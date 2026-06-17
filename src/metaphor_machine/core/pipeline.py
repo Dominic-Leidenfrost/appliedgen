@@ -15,6 +15,7 @@ from pathlib import Path
 
 from ..agents.definer import DefinerAgent
 from ..agents.explorer import ExplorerAgent
+from ..agents.judge import JudgeAgent
 from ..agents.transformer import TransformerAgent
 from ..agents.translator import TranslatorAgent
 from ..llm import LLMConfig
@@ -25,7 +26,7 @@ from ..prompts.language import (
     persist_language,
     resolve_language,
 )
-from .schemas import MetaphorSpec, Move, ProblemSpec, Solution
+from .schemas import ComparisonResult, MetaphorSpec, Move, ProblemSpec, Solution
 
 log = get_logger(__name__)
 
@@ -36,6 +37,9 @@ _AGENT_TEMP = {
     "transformer": 0.9,
     "explorer": 0.7,
     "translator": 0.3,
+    # Judge is graded, not generative — keep it deterministic so the eval is
+    # reproducible (see agents/judge.py).
+    "judge": 0.0,
 }
 
 
@@ -117,6 +121,7 @@ class Pipeline:
         self._definer: DefinerAgent | None = None
         self._explorer: ExplorerAgent | None = None
         self._translator: TranslatorAgent | None = None
+        self._judge: JudgeAgent | None = None
 
     def set_language(self, language: Language) -> None:
         """Switch output language for future agent calls.
@@ -131,6 +136,7 @@ class Pipeline:
         self._definer = None
         self._explorer = None
         self._translator = None
+        self._judge = None
         persist_language(language)
 
     def set_model(self, model: str) -> None:
@@ -147,6 +153,7 @@ class Pipeline:
         self._definer = None
         self._explorer = None
         self._translator = None
+        self._judge = None
         _persist_model(model)
 
     def _config_for(self, agent_name: str) -> LLMConfig:
@@ -175,6 +182,14 @@ class Pipeline:
                 config=self._config_for("translator"), language=self.language
             )
         return self._translator
+
+    @property
+    def judge(self) -> JudgeAgent:
+        if self._judge is None:
+            self._judge = JudgeAgent(
+                config=self._config_for("judge"), language=self.language
+            )
+        return self._judge
 
     # --- step 1: Definer ---
     def run_definer(self, user_text: str) -> ProblemSpec:
@@ -362,3 +377,64 @@ class Pipeline:
         if self.session.problem is None:
             raise RuntimeError("Run the Definer first.")
         return self.translator.baseline(self.session.problem)
+
+    # --- evaluation: LLM-as-Judge (metaphor pipeline vs. baseline) ---
+    @staticmethod
+    def format_solutions_for_judge(solutions: list[Solution]) -> str:
+        """Flatten the Translator's solutions into one prose answer.
+
+        The judge compares whole answers, so we present the back-translations
+        the same way a user would read them — numbered, original-domain only,
+        WITHOUT the metaphor scaffolding or confidence/caveat machinery (the
+        baseline has none of that, and showing it would leak which side is
+        which and bias the judge).
+        """
+        return "\n\n".join(
+            f"{i}. {s.original_domain_translation}"
+            for i, s in enumerate(solutions, 1)
+        )
+
+    def run_judge(
+        self,
+        baseline_text: str | None = None,
+        *,
+        seed: int | None = None,
+    ) -> ComparisonResult:
+        """Blind-judge the Metaphor Machine answer against the baseline.
+
+        Args:
+            baseline_text: a previously generated baseline to reuse. If None,
+                a fresh baseline is generated (so the comparison is always
+                against the SAME model/problem). Passing the already-shown
+                baseline avoids a second LLM call and judges exactly what the
+                user saw.
+            seed: forwarded to the judge's A/B randomisation for reproducibility.
+        """
+        if self.session.problem is None:
+            raise RuntimeError("Run the Definer first.")
+        if not self.session.solutions:
+            raise RuntimeError("Run the Translator first — nothing to judge.")
+
+        metaphor_answer = self.format_solutions_for_judge(self.session.solutions)
+        baseline = baseline_text if baseline_text else self.run_baseline()
+
+        log.info(
+            "Judge.run start | model=%s n_solutions=%d",
+            self.model, len(self.session.solutions),
+        )
+        t0 = time.perf_counter()
+        try:
+            result = self.judge.run(
+                self.session.problem,
+                metaphor_answer,
+                baseline,
+                seed=seed,
+            )
+        except Exception:
+            log.exception("Judge.run failed after %.2fs", time.perf_counter() - t0)
+            raise
+        log.info(
+            "Judge.run done | %.2fs winner=%s order=%s",
+            time.perf_counter() - t0, result.winner, result.order,
+        )
+        return result

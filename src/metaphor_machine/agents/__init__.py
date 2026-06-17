@@ -2,5 +2,6 @@
 
 from .base import Agent
 from .definer import DefinerAgent
+from .judge import JudgeAgent
 
-__all__ = ["Agent", "DefinerAgent"]
+__all__ = ["Agent", "DefinerAgent", "JudgeAgent"]

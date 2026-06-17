@@ -36,6 +36,20 @@ log = get_logger(__name__)
 T = TypeVar("T", bound=BaseModel)
 
 
+def _mock_chat_response(messages: list[dict[str, str]]) -> str:
+    """Canned raw-text reply for mock mode (no schema, no LLM call).
+
+    Used by callers like Translator.baseline that go through chat() rather than
+    structured(). Generic on purpose — it's a smoke stub, not a real answer.
+    """
+    return (
+        "[MOCK] Baseline answer (no metaphor):\n"
+        "1. Triage: list every item and rank by impact this week.\n"
+        "2. Time-box the top two and defer the rest explicitly.\n"
+        "3. Make the trade-off visible to everyone affected."
+    )
+
+
 @dataclass
 class LLMConfig:
     model: str = "anthropic/claude-sonnet-4-6"
@@ -91,6 +105,13 @@ class LLMClient:
             LLMError: missing API key for the requested model (no retries).
             Exception: re-raised after up to 3 retries with exponential backoff.
         """
+        # Mock path: raw-text callers (e.g. Translator.baseline) have no schema
+        # to look up in MOCK_REGISTRY, so structured()'s mock doesn't cover
+        # them. Return a canned answer so the full pipeline — baseline + judge
+        # included — runs offline with no key. See mock.py.
+        if mock_enabled():
+            return _mock_chat_response(messages)
+
         import litellm
 
         model = overrides.get("model", self.config.model)

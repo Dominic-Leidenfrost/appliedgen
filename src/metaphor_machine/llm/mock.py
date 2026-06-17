@@ -149,9 +149,34 @@ def _translator_mock(schema: type[BaseModel], messages: list[dict[str, str]]) ->
     }
 
 
+def _judge_mock(schema: type[BaseModel], messages: list[dict[str, str]]) -> dict[str, Any]:
+    """Return a canned JudgeVerdict in blind A/B terms.
+
+    Always prefers "A". Because JudgeAgent randomises which real answer is
+    labelled A, the de-anonymised winner still flips across seeds — exactly
+    what the position-bias control does — so this fixture exercises both
+    branches of the A/B → metaphor/baseline mapping in tests.
+    """
+    return {
+        "winner": "A",
+        "criteria": [
+            {"name": "specificity", "winner": "A",
+             "rationale": "[MOCK] A names concrete steps; B stays abstract."},
+            {"name": "actionability", "winner": "A",
+             "rationale": "[MOCK] A is something you could do tomorrow."},
+            {"name": "novelty", "winner": "tie",
+             "rationale": "[MOCK] Both land on fairly standard ideas."},
+            {"name": "relevance", "winner": "B",
+             "rationale": "[MOCK] B engages the core tension more directly."},
+        ],
+        "reasoning": "[MOCK] A is more concrete and actionable overall.",
+    }
+
+
 MOCK_REGISTRY: dict[str, Callable[[type[BaseModel], list[dict[str, str]]], dict[str, Any]]] = {
     "definer": _definer_mock,
     "transformer": _transformer_mock,
     "explorer": _explorer_mock,
     "translator": _translator_mock,
+    "judge": _judge_mock,
 }
