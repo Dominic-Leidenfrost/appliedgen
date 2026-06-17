@@ -290,6 +290,15 @@ I18N: dict[str, dict[str, str]] = {
         # --- Evaluation: progress + errors ---
         "Problem {done}/{total}": "Problem {done}/{total}",
         "[{done}/{total}] {label}": "[{done}/{total}] {label}",
+        "Definer — extracting structure": "Definer — Struktur extrahieren",
+        "Transformer — generating {n} metaphors": (
+            "Transformer — {n} Metaphern erzeugen"
+        ),
+        "Explorer — move {k}": "Explorer — Zug {k}",
+        "Translator — back-translating": "Translator — Rückübersetzung",
+        "Baseline — direct answer": "Baseline — Direktantwort",
+        "Judge — run {k}": "Judge — Durchlauf {k}",
+        "starting…": "Start…",
         "✅ Evaluation finished": "✅ Evaluation abgeschlossen",
         "⚠️ Evaluation finished with errors": "⚠️ Evaluation mit Fehlern beendet",
         "❌ Evaluation crashed": "❌ Evaluation abgestürzt",
@@ -1090,6 +1099,32 @@ def render_eval_report(report: dict) -> None:
                 st.markdown(f"> {first_reason}")
 
 
+def _pretty_stage(label: str) -> str:
+    """Turn a raw "<pid> · <stage>" progress label into a readable, localised
+    stage line with an icon, so the status box clearly shows what's running."""
+    stage = label.split(" · ", 1)[1] if " · " in label else label
+    icon, text = "⏳", stage
+    if stage.startswith("Definer"):
+        icon, text = "🧩", t("Definer — extracting structure", LANG)
+    elif stage.startswith("Transformer"):
+        n = "".join(ch for ch in stage if ch.isdigit()) or "?"
+        icon = "🎭"
+        text = t("Transformer — generating {n} metaphors", LANG).format(n=n)
+    elif stage.startswith("Explorer"):
+        nums = stage.replace("Explorer move", "").strip()
+        icon, text = "🧭", t("Explorer — move {k}", LANG).format(k=nums)
+    elif stage.startswith("Translator"):
+        icon, text = "🔄", t("Translator — back-translating", LANG)
+    elif stage.startswith("Baseline"):
+        icon, text = "📊", t("Baseline — direct answer", LANG)
+    elif stage.startswith("Judge"):
+        nums = stage.replace("Judge", "").strip()
+        icon, text = "⚖️", t("Judge — run {k}", LANG).format(k=nums)
+    elif stage.startswith("starting"):
+        icon, text = "⏳", t("starting…", LANG)
+    return f"{icon} {text}"
+
+
 def render_evaluation_page() -> None:
     pl = st.session_state.pipeline
     st.header(t("📊 Evaluation — Metaphor Machine vs. Baseline", LANG))
@@ -1185,7 +1220,8 @@ def render_evaluation_page() -> None:
                 )
                 status.update(
                     label=t("[{done}/{total}] {label}", LANG).format(
-                        done=min(done + 1, total), total=total, label=label
+                        done=min(done + 1, total), total=total,
+                        label=_pretty_stage(label),
                     )
                 )
 
