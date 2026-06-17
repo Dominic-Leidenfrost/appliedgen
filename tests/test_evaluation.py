@@ -44,3 +44,28 @@ def test_run_evaluation_progress_callback():
         ["x"], runs=1, moves=1, progress=lambda d, t, label: seen.append((d, t, label))
     )
     assert seen and seen[-1][2] == "done"
+
+
+def test_evaluate_problem_reports_stages():
+    stages = []
+    evaluate_problem("x", runs=2, moves=1, on_stage=stages.append)
+    # one of each major stage shows up, in order
+    assert any(s.startswith("Definer") for s in stages)
+    assert any(s.startswith("Transformer") for s in stages)
+    assert any(s.startswith("Explorer move 1/1") for s in stages)
+    assert "Translator" in stages and "Baseline" in stages
+    assert any(s.startswith("Judge 1/2") for s in stages)
+    assert any(s.startswith("Judge 2/2") for s in stages)
+
+
+def test_run_evaluation_captures_error_with_type(monkeypatch):
+    import metaphor_machine.evaluation as ev
+
+    def boom(*a, **k):
+        raise RuntimeError("kaboom-429")
+
+    monkeypatch.setattr(ev, "evaluate_problem", boom)
+    report = ev.run_evaluation(["x"], runs=1, moves=1)
+    assert report["overall"]["n"] == 0
+    err = report["per_problem"][0]["error"]
+    assert err.startswith("RuntimeError:") and "kaboom-429" in err

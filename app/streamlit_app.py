@@ -287,6 +287,27 @@ I18N: dict[str, dict[str, str]] = {
         "Metaphor Machine answer": "Metaphor-Machine-Antwort",
         "Baseline answer": "Baseline-Antwort",
         "Tie": "Unentschieden",
+        # --- Evaluation: progress + errors ---
+        "Problem {done}/{total}": "Problem {done}/{total}",
+        "[{done}/{total}] {label}": "[{done}/{total}] {label}",
+        "✅ Evaluation finished": "✅ Evaluation abgeschlossen",
+        "⚠️ Evaluation finished with errors": "⚠️ Evaluation mit Fehlern beendet",
+        "❌ Evaluation crashed": "❌ Evaluation abgestürzt",
+        "⏳ Rate limit hit (HTTP 429). The free model allows only a few "
+        "requests per minute. Pick a non-free model in the sidebar, wait "
+        "a minute, or lower the runs / problems.": (
+            "⏳ Rate-Limit erreicht (HTTP 429). Das kostenlose Modell erlaubt nur "
+            "wenige Anfragen pro Minute. Wähle in der Seitenleiste ein nicht-"
+            "kostenloses Modell, warte eine Minute, oder reduziere Durchläufe / "
+            "Probleme."
+        ),
+        "⚠️ {n} problem(s) failed — details below.": (
+            "⚠️ {n} Problem(e) fehlgeschlagen — Details unten."
+        ),
+        "Error detail — {id}": "Fehlerdetails — {id}",
+        "No successful evaluations — see the error(s) above.": (
+            "Keine erfolgreichen Evaluationen — siehe Fehler oben."
+        ),
         "⚠️ Judge failed: `{err}`": "⚠️ Judge-Fehler: `{err}`",
         # --- Structure panel ---
         "Problem structure": "Problemstruktur",
@@ -949,13 +970,46 @@ def _winner_label(side: str) -> str:
     }.get(side, side)
 
 
+def _is_rate_limit(err: str) -> bool:
+    e = (err or "").lower()
+    return "ratelimit" in e or "rate limit" in e or "429" in e
+
+
+def _render_eval_errors(report: dict) -> None:
+    """Surface the real per-problem exceptions (rate limits, bad keys, …)."""
+    errors = [
+        (pp.get("id", "?"), pp["error"]) for pp in report["per_problem"] if "error" in pp
+    ]
+    if not errors:
+        return
+    if any(_is_rate_limit(e) for _, e in errors):
+        st.error(
+            t(
+                "⏳ Rate limit hit (HTTP 429). The free model allows only a few "
+                "requests per minute. Pick a non-free model in the sidebar, wait "
+                "a minute, or lower the runs / problems.",
+                LANG,
+            )
+        )
+    else:
+        st.error(
+            t("⚠️ {n} problem(s) failed — details below.", LANG).format(n=len(errors))
+        )
+    for pid, err in errors:
+        with st.expander(t("Error detail — {id}", LANG).format(id=pid)):
+            st.code(err, language="text")
+
+
 def render_eval_report(report: dict) -> None:
     """Charts + tables for a finished batch evaluation."""
     import pandas as pd
 
+    # Always surface failures first, even partial ones.
+    _render_eval_errors(report)
+
     overall = report["overall"]
     if overall["n"] == 0:
-        st.warning(t("No successful evaluations — check the model / API key.", LANG))
+        st.warning(t("No successful evaluations — see the error(s) above.", LANG))
         return
 
     c = overall["counts"]
@@ -1114,14 +1168,25 @@ def render_evaluation_page() -> None:
             st.warning(t("No problems to evaluate.", LANG))
         else:
             bar = st.progress(0.0, text=t("Starting…", LANG))
+            status = st.status(t("Starting…", LANG), expanded=True)
 
             def _progress(done, total, label):
-                frac = done / total if total else 1.0
+                # `label` is "<problem-id> · <stage>" (or "done"). Show the live
+                # stage so it's obvious the run is still working, not frozen.
+                if label == "done":
+                    bar.progress(1.0, text=t("Done", LANG))
+                    return
+                frac = done / total if total else 0.0
                 bar.progress(
                     min(1.0, frac),
-                    text=t("Evaluating {label} ({done}/{total})…", LANG).format(
-                        label=label, done=min(done + 1, total), total=total
-                    ) if label != "done" else t("Done", LANG),
+                    text=t("Problem {done}/{total}", LANG).format(
+                        done=min(done + 1, total), total=total
+                    ),
+                )
+                status.update(
+                    label=t("[{done}/{total}] {label}", LANG).format(
+                        done=min(done + 1, total), total=total, label=label
+                    )
                 )
 
             try:
@@ -1135,7 +1200,15 @@ def render_evaluation_page() -> None:
                     progress=_progress,
                 )
                 st.session_state.eval_report = report
+                # Decide the final state from whether anything actually succeeded.
+                if report["overall"]["n"] > 0:
+                    status.update(label=t("✅ Evaluation finished", LANG),
+                                  state="complete", expanded=False)
+                else:
+                    status.update(label=t("⚠️ Evaluation finished with errors", LANG),
+                                  state="error", expanded=False)
             except Exception as e:
+                status.update(label=t("❌ Evaluation crashed", LANG), state="error")
                 st.error(
                     t("⚠️ Evaluation failed: `{err}`", LANG).format(
                         err=f"{type(e).__name__}: {e}"
