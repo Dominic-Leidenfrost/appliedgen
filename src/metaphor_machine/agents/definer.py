@@ -32,39 +32,41 @@ populate `unknowns` with up to 5 clarifying questions, but still produce a
 valid ProblemSpec.
 """
 
-# 1-shot format example: shows the SHAPE, not the content. Using a generic
-# example (vending machine) so we don't bias toward the user's actual domain.
+# Format-only template: it demonstrates the SHAPE of a valid ProblemSpec using
+# abstract placeholders, never real content. Placeholders (<...>) make it
+# impossible to copy verbatim, which previously caused the model to echo a
+# concrete example (the "vending machine / coins" leak) instead of analysing
+# the user's actual input.
 FORMAT_EXAMPLE = """\
-Example input: "My vending machine sometimes eats coins without dispensing."
+FORMAT TEMPLATE — STRUCTURE ONLY.
 
-Example output:
+This is NOT a problem to solve and NOT example content. It only shows which
+fields a valid ProblemSpec has and what type each holds. NEVER reuse any of
+these placeholder strings, names, or values in your answer. Always extract
+every value from the user's actual input (provided in the user message below).
+If you ever output the literal placeholders below, you have made a mistake.
+
 {
-  "raw_user_text": "My vending machine sometimes eats coins without dispensing.",
-  "summary": "Coin-acceptance succeeds but product dispensing intermittently fails.",
+  "raw_user_text": "<the user's input, verbatim>",
+  "summary": "<one neutral sentence describing the user's problem>",
   "entities": [
-    {"name": "coin_acceptor", "role": "actor", "attributes": ["always accepts"]},
-    {"name": "dispenser_motor", "role": "actor", "attributes": ["intermittent"]},
-    {"name": "customer", "role": "actor", "attributes": ["expects product on payment"]},
-    {"name": "coin", "role": "resource", "attributes": ["consumed on insertion"]}
+    {"name": "<concrete_thing_from_user_input>", "role": "actor", "attributes": ["<attribute>"]},
+    {"name": "<another_concrete_thing>", "role": "resource", "attributes": ["<attribute>"]}
   ],
   "relations": [
-    {"source": "coin_acceptor", "target": "dispenser_motor", "kind": "should_trigger", "strength": 1.0},
-    {"source": "customer", "target": "coin", "kind": "provides", "strength": 1.0}
+    {"source": "<entity_name>", "target": "<other_entity_name>", "kind": "<verb_like_relation>", "strength": 1.0}
   ],
   "constraints": [
-    "must charge only on successful dispense",
-    "must not require human intervention per transaction"
+    "<a hard constraint stated or implied by the user>"
   ],
   "goals": [
-    "every accepted coin results in a dispensed product OR a refund"
+    "<what success looks like for the user>"
   ],
   "tensions": [
-    "atomicity of payment+dispense vs. independent hardware components"
+    "<a real contradiction inside the user's problem>"
   ],
   "unknowns": [
-    "frequency of the failure",
-    "which product slots are affected",
-    "any error code shown on the display"
+    "<something you cannot infer and would need to ask the user>"
   ]
 }
 """
@@ -84,11 +86,22 @@ class DefinerAgent(Agent):
         )
 
     def run(self, user_text: str) -> ProblemSpec:
+        # The user's text is wrapped in explicit delimiters so the model can
+        # never confuse it with the format template above, and a final
+        # instruction re-anchors it on this input (recency helps weaker models).
+        user_block = (
+            "Analyse ONLY the problem between the markers below. Extract every "
+            "field of the ProblemSpec from THIS text. Do not use the format "
+            "template's placeholder values.\n"
+            "<<<USER_PROBLEM\n"
+            f"{user_text}\n"
+            "USER_PROBLEM>>>"
+        )
         messages = [
             {"role": "system", "content": self.system_prompt},
             {"role": "system", "content": FORMAT_EXAMPLE},
             {"role": "system", "content": self.language_clause()},
-            {"role": "user", "content": user_text},
+            {"role": "user", "content": user_block},
         ]
         spec = self.client().structured(
             messages=messages,
