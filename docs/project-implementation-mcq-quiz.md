@@ -8,15 +8,15 @@ Tick all options you think are correct before opening the answer block. In Markd
 
 Why does the project keep a central `Pipeline` instead of letting each agent call the next one directly?
 
-- [ ] A. It keeps workflow state in one place.  
-- [ ] B. It lets the pipeline enforce phase order and preconditions.  
-- [ ] C. It prevents agents from needing their own prompts.  
-- [ ] D. It makes Pydantic validation unnecessary.
+- [ ] A. It prevents agents from needing their own prompts.  
+- [ ] B. It keeps workflow state in one place.  
+- [ ] C. It lets each agent keep a separate copy of the full session.  
+- [ ] D. It lets the pipeline enforce phase order and preconditions.
 
 <details>
 <summary>Show answer</summary>
 
-**Correct answers:** A, B
+**Correct answers:** B, D
 
 **Explanation:** The pipeline owns the session and controls the order of Definer, Transformer, Explorer, Translator, and Judge calls. Agents still need prompts, and Pydantic validation is still necessary.
 
@@ -27,14 +27,14 @@ Why does the project keep a central `Pipeline` instead of letting each agent cal
 Which design choice best explains why the agents are mostly stateless?
 
 - [ ] A. State belongs to `Session`, while agents are reusable LLM call wrappers.  
-- [ ] B. Stateless agents make it easier to rebuild them when model or language changes.  
+- [ ] B. Stateless agents guarantee deterministic LLM output.  
 - [ ] C. Stateless agents mean the app cannot save sessions.  
-- [ ] D. Stateless agents guarantee deterministic LLM output.
+- [ ] D. Stateless agents make it easier to rebuild them when model or language changes.
 
 <details>
 <summary>Show answer</summary>
 
-**Correct answers:** A, B
+**Correct answers:** A, D
 
 **Explanation:** Session state is centralized, and cached agents can be dropped and rebuilt with new configuration. Statelessness does not imply deterministic output.
 
@@ -42,19 +42,19 @@ Which design choice best explains why the agents are mostly stateless?
 
 ## Question 3
 
-Which statement about the `Session` object is conceptually most accurate?
+A Transformer call returns JSON with the right top-level fields, but one mapping has `fidelity: 1.4`. Which guardrail should catch this?
 
-- [ ] A. It is the source of truth for the current run's problem, metaphor, moves, and solutions.  
-- [ ] B. It is a provider registry for available models.  
-- [ ] C. It is a prompt template shared by all agents.  
-- [ ] D. It is used only by the command-line smoke test.
+- [ ] A. The Streamlit layout code, because it renders fidelity values.  
+- [ ] B. Pydantic validation on the `Mapping` schema.  
+- [ ] C. The Judge, because it compares final answers.  
+- [ ] D. The Markdown renderer, because tables cannot show values above `1.0`.
 
 <details>
 <summary>Show answer</summary>
 
-**Correct answers:** A
+**Correct answers:** B
 
-**Explanation:** `Session` stores the evolving state of one user run. Providers, prompts, and CLI behavior are handled elsewhere.
+**Explanation:** `Mapping.fidelity` is constrained with `ge=0.0` and `le=1.0`, so schema validation should reject out-of-range values before they become reliable session state.
 
 </details>
 
@@ -62,15 +62,15 @@ Which statement about the `Session` object is conceptually most accurate?
 
 Why is the Definer separated from the Transformer?
 
-- [ ] A. The Definer extracts problem structure, while the Transformer uses that structure to create metaphors.  
-- [ ] B. It avoids mixing factual extraction with creative metaphor generation.  
-- [ ] C. The Transformer cannot receive Pydantic objects.  
-- [ ] D. The Definer is the only agent allowed to call LiteLLM.
+- [ ] A. The Definer is the only agent allowed to call LiteLLM.  
+- [ ] B. The Definer extracts problem structure, while the Transformer uses that structure to create metaphors.  
+- [ ] C. It avoids mixing factual extraction with creative metaphor generation.  
+- [ ] D. The Transformer can only work with raw unstructured text.
 
 <details>
 <summary>Show answer</summary>
 
-**Correct answers:** A, B
+**Correct answers:** B, C
 
 **Explanation:** The Definer and Transformer have different jobs and different temperature needs. The Transformer can receive structured data, and all agents can call the LLM through the shared client.
 
@@ -80,15 +80,15 @@ Why is the Definer separated from the Transformer?
 
 The Definer overwrites `raw_user_text` with the original input after the LLM returns. Why is that useful?
 
-- [ ] A. It guarantees the exact user text is preserved even if the model paraphrases it.  
-- [ ] B. It helps the baseline later answer the original prompt rather than a distorted version.  
-- [ ] C. It forces the model to produce German output.  
-- [ ] D. It prevents the Transformer from running.
+- [ ] A. It forces the model to produce German output.  
+- [ ] B. It prevents the Transformer from running.  
+- [ ] C. It guarantees the exact user text is preserved even if the model paraphrases it.  
+- [ ] D. It helps the baseline later answer the original prompt rather than a distorted version.
 
 <details>
 <summary>Show answer</summary>
 
-**Correct answers:** A, B
+**Correct answers:** C, D
 
 **Explanation:** The raw text is part of the problem record and is also useful for direct baseline generation. It is unrelated to language selection or blocking the Transformer.
 
@@ -100,13 +100,13 @@ Why does the Definer use a relatively low default temperature?
 
 - [ ] A. Its task is extraction rather than creative generation.  
 - [ ] B. Low temperature makes API keys optional.  
-- [ ] C. Low temperature helps make structured extraction more stable.  
-- [ ] D. Pydantic only validates outputs generated at temperature `0.2`.
+- [ ] C. Pydantic only validates outputs generated at temperature `0.2`.  
+- [ ] D. Low temperature helps make structured extraction more stable.
 
 <details>
 <summary>Show answer</summary>
 
-**Correct answers:** A, C
+**Correct answers:** A, D
 
 **Explanation:** The Definer should be precise and stable. API keys and Pydantic validation are not determined by the temperature value.
 
@@ -116,15 +116,15 @@ Why does the Definer use a relatively low default temperature?
 
 What is the main conceptual risk if the Definer suggests solutions too early?
 
-- [ ] A. The system may skip the intended metaphor reasoning loop.  
-- [ ] B. Later agents may inherit a biased problem framing.  
-- [ ] C. The saved Markdown files cannot be rendered.  
-- [ ] D. The provider registry will lose model options.
+- [ ] A. The saved Markdown files cannot be rendered.  
+- [ ] B. The system may skip the intended metaphor reasoning loop.  
+- [ ] C. The provider registry will lose model options.  
+- [ ] D. Later agents may inherit a biased problem framing.
 
 <details>
 <summary>Show answer</summary>
 
-**Correct answers:** A, B
+**Correct answers:** B, D
 
 **Explanation:** The Definer should describe the problem, not solve it. Early solutions can bias or short-circuit the later metaphor-based exploration.
 
@@ -134,15 +134,15 @@ What is the main conceptual risk if the Definer suggests solutions too early?
 
 Which statements about Pydantic schemas are correct in this project?
 
-- [ ] A. They define the structured contract between agents.  
-- [ ] B. They validate LLM outputs before those outputs enter session state.  
-- [ ] C. They remove the need for careful prompting.  
+- [ ] A. They remove the need for careful prompting.  
+- [ ] B. They define the structured contract between agents.  
+- [ ] C. They validate LLM outputs before those outputs enter session state.  
 - [ ] D. They make the LLM response semantically perfect.
 
 <details>
 <summary>Show answer</summary>
 
-**Correct answers:** A, B
+**Correct answers:** B, C
 
 **Explanation:** Schemas enforce shape and constraints. They do not replace prompting or guarantee that a valid answer is also high quality.
 
@@ -152,15 +152,15 @@ Which statements about Pydantic schemas are correct in this project?
 
 Why are `Mapping.leak` and `invariants_broken` important?
 
-- [ ] A. They document where the analogy fails or oversimplifies.  
-- [ ] B. They help the Translator produce caveats.  
-- [ ] C. They are used to select the cheapest LLM provider.  
-- [ ] D. They prove that a metaphor is unusable.
+- [ ] A. They are used to select the cheapest LLM provider.  
+- [ ] B. They prove that a metaphor is unusable.  
+- [ ] C. They document where the analogy fails or oversimplifies.  
+- [ ] D. They help the Translator produce caveats.
 
 <details>
 <summary>Show answer</summary>
 
-**Correct answers:** A, B
+**Correct answers:** C, D
 
 **Explanation:** Leaks and broken invariants are quality controls for metaphor reasoning. They do not choose providers, and a metaphor can still be useful even when it has limitations.
 
@@ -170,15 +170,15 @@ Why are `Mapping.leak` and `invariants_broken` important?
 
 Why does the Transformer have a higher default temperature than the Definer?
 
-- [ ] A. It benefits from more creative variation when generating metaphor worlds.  
-- [ ] B. It is expected to produce different candidate domains.  
-- [ ] C. High temperature guarantees valid JSON.  
+- [ ] A. High temperature guarantees valid JSON.  
+- [ ] B. It benefits from more creative variation when generating metaphor worlds.  
+- [ ] C. It is expected to produce different candidate domains.  
 - [ ] D. High temperature is required by `ThreadPoolExecutor`.
 
 <details>
 <summary>Show answer</summary>
 
-**Correct answers:** A, B
+**Correct answers:** B, C
 
 **Explanation:** Metaphor generation is more creative than extraction. Temperature does not guarantee JSON validity and has no relation to threading.
 
@@ -188,15 +188,15 @@ Why does the Transformer have a higher default temperature than the Definer?
 
 What is the tradeoff between seeded Transformer mode and free domain mode?
 
-- [ ] A. Seeded mode is more guided and controllable.  
-- [ ] B. Free domain mode may discover less obvious metaphor domains.  
-- [ ] C. Seeded mode disables Pydantic validation.  
-- [ ] D. Free domain mode skips the Transformer.
+- [ ] A. Seeded mode disables Pydantic validation.  
+- [ ] B. Free domain mode skips the Transformer.  
+- [ ] C. Seeded mode is more guided and controllable.  
+- [ ] D. Free domain mode may discover less obvious metaphor domains.
 
 <details>
 <summary>Show answer</summary>
 
-**Correct answers:** A, B
+**Correct answers:** C, D
 
 **Explanation:** Seeded mode narrows the search space with curated hints. Free mode lets the model invent a domain. Both still use the Transformer and structured validation.
 
@@ -206,15 +206,15 @@ What is the tradeoff between seeded Transformer mode and free domain mode?
 
 Why does the pipeline run several Transformer calls in parallel?
 
-- [ ] A. LLM calls are slow, and candidates are independent enough to generate concurrently.  
-- [ ] B. It helps produce several candidate metaphors for user selection.  
-- [ ] C. It guarantees the first candidate is always the best.  
-- [ ] D. It lets the Judge evaluate while the Definer is still running.
+- [ ] A. It guarantees the first candidate is always the best.  
+- [ ] B. LLM calls are slow, and candidates are independent enough to generate concurrently.  
+- [ ] C. It lets the Judge evaluate while the Definer is still running.  
+- [ ] D. It helps produce several candidate metaphors for user selection.
 
 <details>
 <summary>Show answer</summary>
 
-**Correct answers:** A, B
+**Correct answers:** B, D
 
 **Explanation:** Parallel generation improves responsiveness and gives the user options. It does not rank quality by position or overlap with earlier pipeline stages.
 
@@ -224,15 +224,15 @@ Why does the pipeline run several Transformer calls in parallel?
 
 Why does the pipeline keep partial Transformer errors in `last_transformer_errors`?
 
-- [ ] A. To surface silent failures when only some parallel runs succeed.  
-- [ ] B. To let the UI explain why fewer metaphor candidates appeared than requested.  
-- [ ] C. To automatically lower API prices.  
-- [ ] D. To replace failed candidates with baseline answers.
+- [ ] A. To automatically lower API prices.  
+- [ ] B. To replace failed candidates with baseline answers.  
+- [ ] C. To surface silent failures when only some parallel runs succeed.  
+- [ ] D. To let the UI explain why fewer metaphor candidates appeared than requested.
 
 <details>
 <summary>Show answer</summary>
 
-**Correct answers:** A, B
+**Correct answers:** C, D
 
 **Explanation:** Some parallel runs can fail while others succeed. The errors are retained so the UI can warn the user and support retrying.
 
@@ -242,15 +242,15 @@ Why does the pipeline keep partial Transformer errors in `last_transformer_error
 
 Why is a diversity filter applied after Transformer runs?
 
-- [ ] A. To prefer candidates from meaningfully different domains.  
-- [ ] B. To avoid showing three near-duplicates when multiple runs converge.  
-- [ ] C. To validate API keys.  
-- [ ] D. To translate moves back to the original problem.
+- [ ] A. To validate API keys.  
+- [ ] B. To prefer candidates from meaningfully different domains.  
+- [ ] C. To translate moves back to the original problem.  
+- [ ] D. To avoid showing three near-duplicates when multiple runs converge.
 
 <details>
 <summary>Show answer</summary>
 
-**Correct answers:** A, B
+**Correct answers:** B, D
 
 **Explanation:** The filter is a simple heuristic to improve variety among candidate metaphor worlds. It is not about credentials or translation.
 
@@ -261,14 +261,14 @@ Why is a diversity filter applied after Transformer runs?
 Why does the Explorer stay inside the metaphor world instead of directly discussing the original problem?
 
 - [ ] A. It preserves a clear separation between metaphor exploration and back-translation.  
-- [ ] B. It forces the Translator to explicitly map ideas back later.  
-- [ ] C. It prevents users from choosing a metaphor.  
-- [ ] D. It means the Explorer never needs validation.
+- [ ] B. It prevents users from choosing a metaphor.  
+- [ ] C. It lets the Explorer modify the original `ProblemSpec` directly.  
+- [ ] D. It forces the Translator to explicitly map ideas back later.
 
 <details>
 <summary>Show answer</summary>
 
-**Correct answers:** A, B
+**Correct answers:** A, D
 
 **Explanation:** The Explorer develops ideas inside the metaphor. The Translator later closes the loop. Validation still matters.
 
@@ -278,15 +278,15 @@ Why does the Explorer stay inside the metaphor world instead of directly discuss
 
 Why does the Explorer require an `obstacle` field?
 
-- [ ] A. Obstacles force moves to include resistance, tradeoffs, or constraints.  
-- [ ] B. Obstacles make the generated move less generic.  
-- [ ] C. Obstacles are used as API credentials.  
-- [ ] D. Obstacles are required because Streamlit cannot render empty strings.
+- [ ] A. Obstacles are used as API credentials.  
+- [ ] B. Obstacles are required because Streamlit cannot render empty strings.  
+- [ ] C. Obstacles force moves to include resistance, tradeoffs, or constraints.  
+- [ ] D. Obstacles make the generated move less generic.
 
 <details>
 <summary>Show answer</summary>
 
-**Correct answers:** A, B
+**Correct answers:** C, D
 
 **Explanation:** Requiring an obstacle improves narrative and reasoning quality. It is not a Streamlit or credential requirement.
 
@@ -296,15 +296,15 @@ Why does the Explorer require an `obstacle` field?
 
 Why does the Explorer check for forbidden generic phrases?
 
-- [ ] A. To reduce vague business-speak and force more concrete moves.  
-- [ ] B. To prevent the model from falling back to generic advice.  
-- [ ] C. To make the output shorter than the baseline.  
-- [ ] D. To guarantee the move is objectively correct.
+- [ ] A. To make the output shorter than the baseline.  
+- [ ] B. To reduce vague business-speak and force more concrete moves.  
+- [ ] C. To select which provider API key should be used.  
+- [ ] D. To prevent the model from falling back to generic advice.
 
 <details>
 <summary>Show answer</summary>
 
-**Correct answers:** A, B
+**Correct answers:** B, D
 
 **Explanation:** The forbidden-word list pushes the Explorer away from generic phrasing. It does not guarantee correctness or shorter output.
 
@@ -315,14 +315,14 @@ Why does the Explorer check for forbidden generic phrases?
 What is the conceptual purpose of "Try different angle" in the Explorer phase?
 
 - [ ] A. It asks for a structurally different strategy from prior moves.  
-- [ ] B. It helps avoid repetitive exploration.  
-- [ ] C. It deletes the selected metaphor.  
+- [ ] B. It deletes the selected metaphor.  
+- [ ] C. It helps avoid repetitive exploration.  
 - [ ] D. It changes the LLM provider automatically.
 
 <details>
 <summary>Show answer</summary>
 
-**Correct answers:** A, B
+**Correct answers:** A, C
 
 **Explanation:** The feature steers the next move toward strategic diversity. It does not alter provider or metaphor selection.
 
@@ -332,15 +332,15 @@ What is the conceptual purpose of "Try different angle" in the Explorer phase?
 
 Why does the Translator require generated Explorer moves before producing solutions?
 
-- [ ] A. Its job is to translate metaphor-space actions back into the original domain.  
-- [ ] B. Without moves, there is no metaphor insight to translate.  
-- [ ] C. The Transformer cannot produce mappings unless solutions already exist.  
-- [ ] D. The Judge requires the Translator to run before the Explorer.
+- [ ] A. The Transformer cannot produce mappings unless solutions already exist.  
+- [ ] B. The Judge requires the Translator to run before the Explorer.  
+- [ ] C. Its job is to translate metaphor-space actions back into the original domain.  
+- [ ] D. Without moves, there is no metaphor insight to translate.
 
 <details>
 <summary>Show answer</summary>
 
-**Correct answers:** A, B
+**Correct answers:** C, D
 
 **Explanation:** The Translator is not a direct solver in the normal pipeline. It converts Explorer moves into `Solution` objects.
 
@@ -350,15 +350,15 @@ Why does the Translator require generated Explorer moves before producing soluti
 
 Why does each `Solution` include confidence and caveats?
 
-- [ ] A. They communicate uncertainty caused by imperfect metaphor mappings.  
-- [ ] B. They make limitations visible to the user.  
-- [ ] C. They replace the need to show the translated solution text.  
-- [ ] D. They are required by LiteLLM for billing.
+- [ ] A. They replace the need to show the translated solution text.  
+- [ ] B. They communicate uncertainty caused by imperfect metaphor mappings.  
+- [ ] C. They are required by LiteLLM for billing.  
+- [ ] D. They make limitations visible to the user.
 
 <details>
 <summary>Show answer</summary>
 
-**Correct answers:** A, B
+**Correct answers:** B, D
 
 **Explanation:** Confidence and caveats prevent overclaiming. They supplement the translation; they do not replace it.
 
@@ -369,14 +369,14 @@ Why does each `Solution` include confidence and caveats?
 What is the role of `Translator.baseline()`?
 
 - [ ] A. It generates a direct no-metaphor answer for comparison.  
-- [ ] B. It provides a reference point for judging whether the metaphor detour helped.  
-- [ ] C. It creates the final `MetaphorSpec`.  
-- [ ] D. It anonymizes answers for the Judge.
+- [ ] B. It creates the final `MetaphorSpec`.  
+- [ ] C. It chooses which Explorer move should be undone.  
+- [ ] D. It provides a reference point for judging whether the metaphor detour helped.
 
 <details>
 <summary>Show answer</summary>
 
-**Correct answers:** A, B
+**Correct answers:** A, D
 
 **Explanation:** The baseline is a direct answer to the same problem. It is compared against the metaphor answer. Anonymization happens in the Judge.
 
@@ -386,15 +386,15 @@ What is the role of `Translator.baseline()`?
 
 Why is the Judge comparison blind?
 
-- [ ] A. To avoid rewarding an answer simply because it is labeled "metaphor".  
-- [ ] B. To reduce method-label bias in the comparison.  
-- [ ] C. To prevent Pydantic from validating the verdict.  
-- [ ] D. To hide the original problem from the Judge.
+- [ ] A. To prevent Pydantic from validating the verdict.  
+- [ ] B. To avoid rewarding an answer simply because it is labeled "metaphor".  
+- [ ] C. To hide the original problem from the Judge.  
+- [ ] D. To reduce method-label bias in the comparison.
 
 <details>
 <summary>Show answer</summary>
 
-**Correct answers:** A, B
+**Correct answers:** B, D
 
 **Explanation:** The Judge sees neutral labels A/B. It still sees the problem and returns structured output.
 
@@ -404,15 +404,15 @@ Why is the Judge comparison blind?
 
 Why is A/B order randomized in Judge runs?
 
-- [ ] A. LLM judges may prefer whichever answer appears first.  
-- [ ] B. Randomization helps audit or reduce position bias.  
-- [ ] C. Randomization makes the baseline more creative.  
-- [ ] D. Randomization is needed for `json.loads`.
+- [ ] A. Randomization makes the baseline more creative.  
+- [ ] B. Randomization is needed for `json.loads`.  
+- [ ] C. LLM judges may prefer whichever answer appears first.  
+- [ ] D. Randomization helps audit or reduce position bias.
 
 <details>
 <summary>Show answer</summary>
 
-**Correct answers:** A, B
+**Correct answers:** C, D
 
 **Explanation:** Random order controls for position bias. It does not change answer content or JSON parsing.
 
@@ -492,37 +492,37 @@ What is the benefit of using LiteLLM in this project?
 
 ## Question 28
 
-Why does the provider registry check for API keys before calling the model?
+A user selects `openai/gpt-4o`, but no `OPENAI_API_KEY` is configured. What is the guardrail value of checking this before the LLM call?
 
-- [ ] A. It can fail earlier with a clearer error message.  
-- [ ] B. It maps known model strings to required environment variables.  
-- [ ] C. It stores generated solutions.  
-- [ ] D. It converts model output to Pydantic objects.
+- [ ] A. It turns an avoidable provider failure into a clearer configuration error.  
+- [ ] B. It prevents retry logic from wasting time on a problem retries cannot fix.  
+- [ ] C. It automatically falls back to an Anthropic model with the same prompt.  
+- [ ] D. It validates that the model's final JSON matches the target schema.
 
 <details>
 <summary>Show answer</summary>
 
 **Correct answers:** A, B
 
-**Explanation:** The registry knows which provider key is required for known model strings. Structured conversion happens in the LLM client.
+**Explanation:** Missing API keys are configuration errors, not transient provider failures. The early check gives a more useful message and avoids pointless retries. Schema validation is handled elsewhere.
 
 </details>
 
 ## Question 29
 
-Why is mock mode useful for this project?
+Which testing risk remains even when `METAPHOR_MOCK=1` makes the full pipeline pass?
 
-- [ ] A. It allows tests without real API keys or network calls.  
-- [ ] B. It exercises the pipeline with predictable canned outputs.  
-- [ ] C. It improves the quality of real model responses.  
-- [ ] D. It disables schemas so tests can ignore structure.
+- [ ] A. Real models may still produce malformed or low-quality outputs not covered by fixtures.  
+- [ ] B. Provider-specific behavior and rate limits are not exercised.  
+- [ ] C. Pydantic schemas are completely bypassed in mock mode.  
+- [ ] D. The pipeline cannot be tested end-to-end in mock mode.
 
 <details>
 <summary>Show answer</summary>
 
 **Correct answers:** A, B
 
-**Explanation:** Mock mode is for reliable offline testing and development. It does not improve real LLM behavior or remove schema validation.
+**Explanation:** Mock mode is good for deterministic offline tests, but it cannot fully simulate provider behavior or real LLM failure modes. The mocked outputs are still validated against schemas.
 
 </details>
 
@@ -582,19 +582,19 @@ Why are schema field names kept in English even when German output is selected?
 
 ## Question 33
 
-What is the main reason session saving writes both Markdown and JSON?
+Why is `session.json` a safer replay artifact than the rendered Markdown files?
 
-- [ ] A. Markdown is readable for humans.  
-- [ ] B. JSON preserves structured data for loading or replay.  
-- [ ] C. Markdown is needed for Pydantic validation.  
-- [ ] D. JSON is needed for Streamlit button rendering.
+- [ ] A. It preserves typed structure instead of relying on re-parsing prose and tables.  
+- [ ] B. It can be validated when loaded back into Pydantic models.  
+- [ ] C. It hides all generated content from the user.  
+- [ ] D. It prevents the saved session from containing bad model output in the first place.
 
 <details>
 <summary>Show answer</summary>
 
 **Correct answers:** A, B
 
-**Explanation:** Markdown is for inspection and presentation; JSON is for structured reconstruction. Pydantic validates parsed data, not Markdown.
+**Explanation:** JSON is structured and loadable; Markdown is mainly for human inspection. Saving JSON does not retroactively prove the content is good, but loading can validate its shape.
 
 </details>
 
@@ -672,37 +672,37 @@ Which statements about curated seed domains are correct?
 
 ## Question 38
 
-Which statements about a `MetaphorSpec` are correct?
+The Transformer produces a metaphor with only two mappings, but the JSON is otherwise schema-valid. Why is an extra quality check needed beyond Pydantic?
 
-- [ ] A. It represents one candidate metaphor world.  
-- [ ] B. It contains mappings from original concepts to metaphor concepts.  
-- [ ] C. It is the same thing as a final `Solution`.  
-- [ ] D. It is generated after the Translator runs.
+- [ ] A. Pydantic can validate shape and field constraints, but not whether the metaphor is rich enough.  
+- [ ] B. The project has a domain-specific expectation that major entities and relations should be mapped.  
+- [ ] C. Pydantic cannot parse any nested list fields.  
+- [ ] D. The Judge must always repair `MetaphorSpec` before the Explorer sees it.
 
 <details>
 <summary>Show answer</summary>
 
 **Correct answers:** A, B
 
-**Explanation:** `MetaphorSpec` is created by the Transformer before exploration and translation.
+**Explanation:** Schema validation says the object has the right structure. The Transformer adds project-specific quality checks, such as requiring enough mappings and discouraging suspicious high-fidelity mappings without leaks.
 
 </details>
 
 ## Question 39
 
-Which statements about a `Solution` are correct?
+What guardrail does the Translator's caveat requirement add to the final answer?
 
-- [ ] A. It contains the original-domain translation of a metaphor move.  
-- [ ] B. It can include caveats derived from analogy leaks.  
-- [ ] C. It is produced before the Explorer generates moves.  
-- [ ] D. It stores the selected model string.
+- [ ] A. It makes analogy limitations visible instead of presenting all translations as equally reliable.  
+- [ ] B. It encourages the model to connect back to mapping leaks and fidelity limits.  
+- [ ] C. It guarantees the user will follow the advice correctly.  
+- [ ] D. It prevents the baseline answer from being generated.
 
 <details>
 <summary>Show answer</summary>
 
 **Correct answers:** A, B
 
-**Explanation:** Solutions are Translator outputs based on Explorer moves. Model choice is stored separately.
+**Explanation:** Caveats are a reasoning guardrail against overconfident back-translation. They do not control user behavior or baseline generation.
 
 </details>
 
@@ -726,37 +726,37 @@ Which statements about the win-rate calculation are correct?
 
 ## Question 41
 
-Which statements about API key handling are correct?
+Which proposed "guardrails" would actually weaken the project?
 
-- [ ] A. API keys are hard-coded inside `Pipeline`.  
-- [ ] B. API keys are saved inside `session.json`.  
-- [ ] C. API keys are stored inside each `ProblemSpec`.  
-- [ ] D. API keys are generated automatically by the Judge.
+- [ ] A. Trusting raw LLM text directly instead of validating it against Pydantic schemas.  
+- [ ] B. Keeping old metaphors and moves after the user changes the extracted problem structure.  
+- [ ] C. Checking required API keys before provider calls.  
+- [ ] D. Recording whether the Judge saw the metaphor answer first or second.
 
 <details>
 <summary>Show answer</summary>
 
-**Correct answers:** None
+**Correct answers:** A, B
 
-**Explanation:** API keys are expected through environment variables such as `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `GROQ_API_KEY`, or `OPENROUTER_API_KEY`.
+**Explanation:** Skipping validation and keeping stale downstream state both increase risk. API-key checks and judge-order recording are useful guardrails.
 
 </details>
 
 ## Question 42
 
-Which statements about the Definer's intended behavior are correct?
+Which user actions or system checks protect against the Definer misunderstanding the original problem?
 
-- [ ] A. It should choose the final metaphor domain.  
-- [ ] B. It should generate final translated solutions.  
-- [ ] C. It should run the blind A/B evaluation.  
-- [ ] D. It should save Markdown files to disk.
+- [ ] A. Showing the extracted structure before metaphor generation.  
+- [ ] B. Allowing the user to edit entities, relations, goals, constraints, and tensions.  
+- [ ] C. Automatically treating the first metaphor candidate as ground truth in interactive mode.  
+- [ ] D. Clearing downstream artifacts if the corrected problem invalidates previous results.
 
 <details>
 <summary>Show answer</summary>
 
-**Correct answers:** None
+**Correct answers:** A, B, D
 
-**Explanation:** The Definer only extracts problem structure. Transformer, Translator, Judge, and storage handle the other responsibilities.
+**Explanation:** The UI exposes the structure so the user can correct it, and the pipeline clears stale downstream results after correction. Automatically treating a metaphor as ground truth would be the opposite of a guardrail.
 
 </details>
 
@@ -888,19 +888,19 @@ Why are the schema field names kept in English even when German output is select
 
 ## Question 50
 
-Which implementation detail best supports offline development and tests?
+Which guardrail is specifically aimed at prompt-format failures rather than reasoning quality?
 
-- [ ] A. `METAPHOR_MOCK=1` routes LLM calls to canned fixtures.  
-- [ ] B. `ThreadPoolExecutor` stores API keys in memory.  
-- [ ] C. The Judge disables schemas during tests.  
-- [ ] D. Markdown files replace all structured objects.
+- [ ] A. Extracting the first JSON object from a response that may contain Markdown fences.  
+- [ ] B. Re-prompting when Pydantic validation fails.  
+- [ ] C. Asking the Judge to compare novelty and relevance.  
+- [ ] D. Asking the Transformer to list broken invariants.
 
 <details>
 <summary>Show answer</summary>
 
-**Correct answers:** A
+**Correct answers:** A, B
 
-**Explanation:** Mock mode returns deterministic fixture data and avoids real LLM calls. The other options do not describe the test strategy.
+**Explanation:** JSON extraction and validation retries handle output-format/schema failures. Judge criteria and broken invariants address answer quality and analogy quality rather than raw response formatting.
 
 </details>
 
@@ -924,18 +924,18 @@ Which conceptual issue does the "free domains" option address?
 
 ## Question 52
 
-Which conceptual tradeoff is introduced by using curated seed domains for the Transformer?
+Which things are **not** fully solved by the project's guardrails?
 
-- [ ] A. Seed domains can improve diversity and controllability, but may limit surprising metaphor choices.  
-- [ ] B. Seed domains remove the need to check mapping quality.  
-- [ ] C. Seed domains make the Transformer deterministic even at high temperature.  
-- [ ] D. Seed domains guarantee that every metaphor preserves all original invariants.
+- [ ] A. A schema-valid but unhelpful metaphor.  
+- [ ] B. A Judge verdict that still has subtle model bias despite randomization.  
+- [ ] C. A missing required provider API key for a known model.  
+- [ ] D. A Transformer output with `fidelity` outside the allowed numeric range.
 
 <details>
 <summary>Show answer</summary>
 
-**Correct answers:** A
+**Correct answers:** A, B
 
-**Explanation:** Curated seeds guide the model toward known metaphor families and make candidate generation easier to control. The tradeoff is that they can narrow the search space.
+**Explanation:** Guardrails reduce risk but do not guarantee quality or fully eliminate judge bias. Missing keys and invalid numeric ranges are much more directly caught by provider checks and Pydantic constraints.
 
 </details>
